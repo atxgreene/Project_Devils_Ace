@@ -34,7 +34,7 @@
     {desc:'9 v 7',t:9,up:7,idx:3,at:'D',below:'H'},
     {desc:'16 v 9',t:16,up:9,idx:5,at:'S',below:'H'},
     {desc:'13 v 2',t:13,up:2,idx:-1,at:'S',below:'H'},
-    {desc:'12 v 4',t:12,up:4,idx:0,at:'S',below:'H'},
+    {desc:'12 v 4',t:12,up:4,idx:0,at:'S',below:'H',neg:true},
     {desc:'12 v 5',t:12,up:5,idx:-2,at:'S',below:'H'},
     {desc:'12 v 6',t:12,up:6,idx:-1,at:'S',below:'H'},
     {desc:'13 v 3',t:13,up:3,idx:-2,at:'S',below:'H'},
@@ -89,9 +89,11 @@
     const matches=DEV.filter(d => d.up===up && (d.pair!=null ? pair===d.pair : (!soft && pair==null && total===d.t)));
     const active=[];
     for(const d of matches){
-      const trig = d.idx>=0 ? tc>=d.idx : tc<d.idx;
+      // neg entries (and negative indices) deviate BELOW the index — e.g. 12v4: hit when TC < 0
+      const isNeg = d.neg || d.idx<0;
+      const trig = isNeg ? tc<d.idx : tc>=d.idx;
       if(!trig) continue;
-      const act = d.idx>=0 ? d.at : d.below;
+      const act = isNeg ? d.below : d.at;
       if(act==='R' && (!R.surr || !two)) continue;
       if(act==='D' && !two) continue;
       if(act==='P' && pair==null) continue;
@@ -106,7 +108,7 @@
   }
   function devRuleText(d, rr){
     const on = rr.active.some(x=>x.d===d);
-    const rule = d.idx>=0 ? `${ACT[d.at]} at TC ≥ ${fmt(d.idx)}` : `${ACT[d.below]} when TC < ${fmt(d.idx)}`;
+    const rule = (d.neg || d.idx<0) ? `${ACT[d.below]} when TC < ${fmt(d.idx)}` : `${ACT[d.at]} at TC ≥ ${fmt(d.idx)}`;
     return `${on?'✓':'·'} ${d.desc}: ${rule}${on?' — active now':''}`;
   }
 
