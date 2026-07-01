@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a1410">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Devil's Ace">
+<meta name="description" content="Devil's Ace — a full blackjack card-counting & basic-strategy trainer. Drill the count, master deviations, and simulate your edge against the house. Offline, local-first PWA.">
+<title>Devil's Ace • Blackjack Advantage Trainer</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230a1410'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='%23e8b04b'%3E%E2%99%A0%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0a1410; --bg2:#0d1a15; --felt:#0f3d2e; --felt2:#0b2b20;
+    --panel:rgba(255,255,255,.045); --panel-border:rgba(255,255,255,.09);
+    --ink:#e9efe9; --muted:#8ea79a; --gold:#e8b04b; --gold2:#f4c96b;
+    --red:#e0523f; --green:#37c98b; --slate:#12303a;
+    --shadow:0 24px 48px -16px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'Space Grotesk',ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    background:radial-gradient(1200px 700px at 50% -10%, #123 0%, var(--bg) 55%) fixed;
+    color:var(--ink); min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-variant-numeric:tabular-nums;font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
+  a{color:var(--gold)}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 18px 90px}
+  /* Header */
+  header{position:sticky;top:0;z-index:50;background:rgba(10,20,16,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--panel-border)}
+  .bar{max-width:1080px;margin:0 auto;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}
+  .spade{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;font-size:26px;color:var(--bg);
+    background:linear-gradient(135deg,var(--gold2),var(--gold));box-shadow:0 8px 22px -6px rgba(232,176,75,.6);flex:none}
+  .brand h1{font-size:22px;letter-spacing:-.5px;margin:0;line-height:1}
+  .brand .sub{font-size:9.5px;letter-spacing:3px;color:var(--muted);margin-top:3px;text-transform:uppercase}
+  .hbtns{display:flex;gap:8px;flex:none}
+  .icon-btn{background:var(--panel);border:1px solid var(--panel-border);color:var(--ink);border-radius:12px;padding:9px 12px;cursor:pointer;font-size:13px;transition:.15s}
+  .icon-btn:hover{background:rgba(255,255,255,.1)}
+  .icon-btn.hidden{display:none}
+  /* Tabs */
+  .tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--panel-border);margin:14px 0 22px;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{background:none;border:0;color:var(--muted);padding:13px 16px;font-size:13px;font-weight:600;letter-spacing:.5px;cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent;transition:.15s;font-family:inherit}
+  .tab:hover{color:var(--ink)}
+  .tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+  /* Cards / panels */
+  .panel{background:var(--panel);border:1px solid var(--panel-border);border-radius:20px;padding:22px;box-shadow:var(--shadow)}
+  .grid{display:grid;gap:16px}
+  @media(min-width:760px){.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}}
+  h2{font-size:26px;letter-spacing:-.5px;margin:0 0 4px}
+  h3{font-size:16px;margin:0 0 10px}
+  .lead{color:var(--muted);font-size:14px;margin:0 0 18px;max-width:62ch;line-height:1.55}
+  .view{display:none;animation:fade .3s ease}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  /* Playing cards */
+  .felt{background:radial-gradient(120% 120% at 50% 0%,var(--felt) 0%,var(--felt2) 100%);border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:22px}
+  .hand{display:flex;gap:10px;flex-wrap:wrap;min-height:104px;align-items:center}
+  .pcard{width:70px;height:98px;border-radius:10px;background:linear-gradient(160deg,#fff,#eef1ee);color:#111;position:relative;box-shadow:0 6px 16px -4px rgba(0,0,0,.5);display:flex;flex-direction:column;justify-content:space-between;padding:7px 8px;font-weight:700;animation:deal .28s cubic-bezier(.2,.7,.3,1.2)}
+  .pcard.red{color:var(--red)}
+  .pcard .r{font-size:19px;line-height:1}
+  .pcard .s{font-size:22px;text-align:right}
+  .pcard.mid{font-size:26px;align-items:center;justify-content:center;display:grid;place-items:center}
+  .pcard.back{background:repeating-linear-gradient(45deg,#123,#123 6px,#0c2b22 6px,#0c2b22 12px);color:transparent;border:2px solid var(--gold)}
+  @keyframes deal{from{opacity:0;transform:translateY(-24px) rotate(-6deg)}to{opacity:1;transform:none}}
+  .lbl{font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+  /* Action buttons */
+  .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+  .btn{border:0;border-radius:13px;padding:13px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s;color:#0a1410;background:linear-gradient(135deg,var(--gold2),var(--gold));box-shadow:0 8px 20px -8px rgba(232,176,75,.6)}
+  .btn:hover{filter:brightness(1.07)}
+  .btn.ghost{background:var(--panel);color:var(--ink);border:1px solid var(--panel-border);box-shadow:none}
+  .btn.ghost:hover{background:rgba(255,255,255,.1)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
+  .btn.sm{padding:9px 13px;font-size:12.5px}
+  /* Feedback */
+  .fb{margin-top:16px;padding:14px 16px;border-radius:13px;font-size:14px;line-height:1.5;display:none}
+  .fb.show{display:block;animation:fade .2s}
+  .fb.ok{background:rgba(55,201,139,.12);border:1px solid rgba(55,201,139,.4);color:#8ff0c4}
+  .fb.no{background:rgba(224,82,63,.12);border:1px solid rgba(224,82,63,.4);color:#ffb0a4}
+  /* Stat pills */
+  .stats-row{display:flex;gap:10px;flex-wrap:wrap}
+  .pill{background:var(--panel);border:1px solid var(--panel-border);border-radius:14px;padding:12px 16px;flex:1;min-width:120px}
+  .pill .v{font-size:30px;font-weight:700}
+  .pill .k{font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+  .gold{color:var(--gold)}.rd{color:var(--red)}.gr{color:var(--green)}
+  /* Inputs */
+  label.f{display:block;font-size:12px;color:var(--muted);margin:0 0 6px;letter-spacing:.5px}
+  input[type=number],input[type=text],select{width:100%;background:var(--bg2);border:1px solid var(--panel-border);color:var(--ink);border-radius:11px;padding:11px 12px;font-family:inherit;font-size:14px}
+  input[type=range]{width:100%;accent-color:var(--gold)}
+  .field{margin-bottom:14px}
+  .countbox{font-size:64px;font-weight:700;text-align:center;letter-spacing:-2px;margin:8px 0}
+  .big-card{width:150px;height:210px;margin:0 auto}
+  .big-card .r{font-size:40px}.big-card .s{font-size:46px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .kbd{font-size:11px;color:var(--muted)}
+  table.chart{border-collapse:collapse;font-size:11px;width:100%;margin-top:8px}
+  table.chart th,table.chart td{border:1px solid rgba(255,255,255,.08);padding:4px 3px;text-align:center;font-weight:600}
+  table.chart th{color:var(--muted);font-weight:600}
+  .c-H{background:rgba(224,82,63,.22)}.c-S{background:rgba(120,130,140,.28)}
+  .c-D{background:rgba(55,201,139,.22)}.c-P{background:rgba(232,176,75,.26);color:#0a1410}
+  .c-R{background:rgba(150,90,220,.3)}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:10px}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .muted{color:var(--muted)}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:100;display:none;align-items:center;justify-content:center;padding:18px}
+  .modal.show{display:flex;animation:fade .2s}
+  .modal .panel{max-width:460px;width:100%;max-height:88vh;overflow:auto}
+  canvas{max-width:100%}
+  footer{text-align:center;color:var(--muted);font-size:11px;padding:26px 0 10px;letter-spacing:.5px}
+  .toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--panel-border)}
+  .switch{position:relative;width:46px;height:26px;flex:none}
+  .switch input{opacity:0;width:0;height:0}
+  .slider{position:absolute;inset:0;background:var(--slate);border-radius:20px;transition:.2s;cursor:pointer}
+  .slider:before{content:"";position:absolute;height:20px;width:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+  .switch input:checked+.slider{background:var(--gold)}
+  .switch input:checked+.slider:before{transform:translateX(20px)}
+  .disclaimer{font-size:11px;color:var(--muted);line-height:1.5;margin-top:14px;padding:12px 14px;border:1px dashed var(--panel-border);border-radius:12px}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">
+      <div class="spade">♠</div>
+      <div>
+        <h1>DEVIL'S ACE</h1>
+        <div class="sub">Blackjack Advantage Trainer</div>
+      </div>
+    </div>
+    <div class="hbtns">
+      <button class="icon-btn hidden" id="installBtn" onclick="installPWA()">⤓ Install</button>
+      <button class="icon-btn" onclick="openSettings()">⚙ Rules</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-v="strategy">BASIC STRATEGY</button>
+    <button class="tab" data-v="count">CARD COUNTING</button>
+    <button class="tab" data-v="truecount">TRUE COUNT</button>
+    <button class="tab" data-v="deviations">DEVIATIONS</button>
+    <button class="tab" data-v="sim">EDGE SIMULATOR</button>
+    <button class="tab" data-v="chart">STRATEGY CHART</button>
+    <button class="tab" data-v="stats">STATS</button>
+  </div>
+
+  <!-- ===================== BASIC STRATEGY ===================== -->
+  <section class="view active" id="v-strategy">
+    <h2>Basic Strategy Trainer</h2>
+    <p class="lead">The foundation of every winning player. A hand is dealt; choose the mathematically correct play for the current rules. Perfect basic strategy cuts the house edge to ~0.5% before you ever count a card.</p>
+    <div class="stats-row" style="margin-bottom:16px">
+      <div class="pill"><div class="v gold mono" id="bs-acc">100%</div><div class="k">Accuracy</div></div>
+      <div class="pill"><div class="v mono" id="bs-streak">0</div><div class="k">Streak</div></div>
+      <div class="pill"><div class="v mono" id="bs-hands">0</div><div class="k">Hands</div></div>
+    </div>
+    <div class="felt">
+      <div class="lbl">Dealer shows</div>
+      <div class="hand" id="bs-dealer"></div>
+      <div class="lbl" style="margin-top:18px">Your hand — <span id="bs-total" class="gold"></span></div>
+      <div class="hand" id="bs-player"></div>
+      <div class="actions" id="bs-actions">
+        <button class="btn" onclick="bsAnswer('H')">Hit</button>
+        <button class="btn" onclick="bsAnswer('S')">Stand</button>
+        <button class="btn" onclick="bsAnswer('D')">Double</button>
+        <button class="btn" onclick="bsAnswer('P')">Split</button>
+        <button class="btn" onclick="bsAnswer('R')">Surrender</button>
+      </div>
+      <div class="fb" id="bs-fb"></div>
+      <div class="actions" id="bs-next" style="display:none">
+        <button class="btn ghost" onclick="bsDeal()">Next hand →</button>
+      </div>
+    </div>
+    <p class="kbd" style="margin-top:10px">Keys: <b>H</b> hit · <b>S</b> stand · <b>D</b> double · <b>P</b> split · <b>R</b> surrender · <b>Space/Enter</b> next</p>
+  </section>
+
+  <!-- ===================== CARD COUNTING ===================== -->
+  <section class="view" id="v-count">
+    <h2>Card Counting Drill</h2>
+    <p class="lead">Cards flash one at a time. Keep the running count in your head using the selected system, then enter it at the end. Speed and system are adjustable in Rules.</p>
+    <div class="panel">
+      <div class="row" style="justify-content:space-between">
+        <div><span class="lbl">System</span><div class="gold mono" id="cd-system">Hi-Lo</div></div>
+        <div><span class="lbl">Cards</span><div class="mono" id="cd-progress">0 / 0</div></div>
+        <div><span class="lbl">Speed</span><div class="mono" id="cd-speedlbl">1.0 s</div></div>
+      </div>
+      <div style="margin:22px 0" id="cd-stage">
+        <div class="pcard mid big-card" id="cd-card" style="visibility:hidden"><span>♠</span></div>
+      </div>
+      <div class="field">
+        <label class="f">Deck cards per round (penetration slice)</label>
+        <input type="range" id="cd-len" min="10" max="104" step="1" value="26" oninput="document.getElementById('cd-lenlbl').innerText=this.value">
+        <div class="muted mono" style="font-size:12px"><span id="cd-lenlbl">26</span> cards</div>
+      </div>
+      <div class="field">
+        <label class="f">Flash speed</label>
+        <input type="range" id="cd-speed" min="200" max="2500" step="100" value="1000" oninput="cdSpeedLbl()">
+      </div>
+      <div class="actions">
+        <button class="btn" id="cd-start" onclick="cdStart()">Deal the shoe</button>
+      </div>
+      <div id="cd-answer" style="display:none;margin-top:18px">
+        <label class="f">What is the running count?</label>
+        <div class="row">
+          <input type="number" id="cd-guess" class="mono" style="max-width:140px" placeholder="0">
+          <button class="btn" onclick="cdCheck()">Check</button>
+        </div>
+      </div>
+      <div class="fb" id="cd-fb"></div>
+    </div>
+  </section>
+
+  <!-- ===================== TRUE COUNT ===================== -->
+  <section class="view" id="v-truecount">
+    <h2>True Count Conversion</h2>
+    <p class="lead">The running count only matters relative to how many decks remain. True count = running count ÷ decks remaining. This is the number that drives betting and deviations. Drill the division until it's instant.</p>
+    <div class="panel">
+      <div class="grid g3" style="text-align:center">
+        <div class="pill"><div class="v mono gold" id="tc-run">0</div><div class="k">Running Count</div></div>
+        <div class="pill"><div class="v mono" id="tc-cards">0</div><div class="k">Cards Remaining</div></div>
+        <div class="pill"><div class="v mono" id="tc-decks">0</div><div class="k">Decks Remaining</div></div>
+      </div>
+      <div class="field" style="margin-top:20px">
+        <label class="f">True count (round to nearest whole number)</label>
+        <div class="row">
+          <input type="number" id="tc-guess" class="mono" style="max-width:140px" placeholder="0">
+          <button class="btn" onclick="tcCheck()">Check</button>
+          <button class="btn ghost" onclick="tcNew()">New drill</button>
+        </div>
+      </div>
+      <div class="fb" id="tc-fb"></div>
+      <div class="stats-row" style="margin-top:16px">
+        <div class="pill"><div class="v mono gold" id="tc-acc">100%</div><div class="k">Accuracy</div></div>
+        <div class="pill"><div class="v mono" id="tc-count">0</div><div class="k">Drills</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== DEVIATIONS ===================== -->
+  <section class="view" id="v-deviations">
+    <h2>Index Plays — Illustrious 18 &amp; Fab 4</h2>
+    <p class="lead">At high or low true counts, the correct play changes. These index deviations are where most of a counter's added edge comes from. Given the hand and the true count, choose the correct action.</p>
+    <div class="stats-row" style="margin-bottom:16px">
+      <div class="pill"><div class="v gold mono" id="dv-acc">100%</div><div class="k">Accuracy</div></div>
+      <div class="pill"><div class="v mono" id="dv-streak">0</div><div class="k">Streak</div></div>
+      <div class="pill"><div class="v mono" id="dv-hands">0</div><div class="k">Plays</div></div>
+    </div>
+    <div class="felt">
+      <div class="row" style="justify-content:space-between">
+        <div><span class="lbl">Dealer shows</span><div class="hand" id="dv-dealer" style="min-height:auto"></div></div>
+        <div style="text-align:right"><span class="lbl">True count</span><div class="countbox gold mono" style="font-size:44px;margin:0" id="dv-tc">+0</div></div>
+      </div>
+      <div class="lbl" style="margin-top:14px">Your hand — <span id="dv-hand-lbl" class="gold"></span></div>
+      <div class="hand" id="dv-player"></div>
+      <div class="actions" id="dv-actions"></div>
+      <div class="fb" id="dv-fb"></div>
+      <div class="actions" id="dv-next" style="display:none">
+        <button class="btn ghost" onclick="dvDeal()">Next play →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SIMULATOR ===================== -->
+  <section class="view" id="v-sim">
+    <h2>Edge Simulator</h2>
+    <p class="lead">Model a counting session. Set your rules, bet spread, penetration and bankroll, then run a Monte-Carlo simulation to see expected value, bankroll swings, and risk of ruin. This is a statistical model of the count-driven edge — real results vary.</p>
+    <div class="grid g2">
+      <div class="panel">
+        <h3>Session parameters</h3>
+        <div class="field"><label class="f">Bankroll ($)</label><input type="number" id="sim-bank" value="10000" class="mono"></div>
+        <div class="field"><label class="f">Min bet — unit ($)</label><input type="number" id="sim-unit" value="25" class="mono"></div>
+        <div class="field"><label class="f">Bet spread (units at max TC)</label>
+          <input type="range" id="sim-spread" min="1" max="20" value="8" oninput="document.getElementById('sim-spreadlbl').innerText='1–'+this.value+'×'">
+          <div class="muted mono" style="font-size:12px" id="sim-spreadlbl">1–8×</div>
+        </div>
+        <div class="field"><label class="f">Hands to simulate</label>
+          <select id="sim-hands"><option value="5000">5,000</option><option value="20000" selected>20,000</option><option value="100000">100,000</option><option value="500000">500,000</option></select>
+        </div>
+        <div class="field"><label class="f">Penetration (decks dealt of 6)</label>
+          <input type="range" id="sim-pen" min="3" max="5.5" step="0.25" value="4.5" oninput="document.getElementById('sim-penlbl').innerText=this.value">
+          <div class="muted mono" style="font-size:12px"><span id="sim-penlbl">4.5</span> / 6 decks</div>
+        </div>
+        <div class="actions"><button class="btn" id="sim-run" onclick="runSim()">Run simulation</button></div>
+      </div>
+      <div class="panel">
+        <h3>Results</h3>
+        <div class="stats-row">
+          <div class="pill"><div class="v mono" id="sim-ev">—</div><div class="k">Expected $/session</div></div>
+          <div class="pill"><div class="v mono" id="sim-edge">—</div><div class="k">Player edge</div></div>
+        </div>
+        <div class="stats-row" style="margin-top:10px">
+          <div class="pill"><div class="v mono" id="sim-ror">—</div><div class="k">Risk of ruin</div></div>
+          <div class="pill"><div class="v mono" id="sim-final">—</div><div class="k">Median end bankroll</div></div>
+        </div>
+        <canvas id="sim-chart" height="180" style="margin-top:16px"></canvas>
+        <div class="muted mono" style="font-size:11px;margin-top:8px" id="sim-note">Run to plot 20 sample bankroll trajectories.</div>
+      </div>
+    </div>
+    <div class="disclaimer">⚠︎ Educational model only. Card counting is legal but casinos may bar advantage players, and the model assumes disciplined play, honest games, and the stated rules. No tool guarantees a win — variance is real and the house survives on players who deviate.</div>
+  </section>
+
+  <!-- ===================== CHART ===================== -->
+  <section class="view" id="v-chart">
+    <h2>Basic Strategy Chart</h2>
+    <p class="lead">Live for your current rules (<span id="ch-rules" class="gold"></span>). Columns are the dealer's up-card; rows are your hand. Study these until the trainer above is automatic.</p>
+    <div class="panel">
+      <h3>Hard totals</h3><div id="ch-hard"></div>
+      <h3 style="margin-top:20px">Soft totals (Ace counted as 11)</h3><div id="ch-soft"></div>
+      <h3 style="margin-top:20px">Pairs</h3><div id="ch-pairs"></div>
+      <div class="legend">
+        <span><i class="sw c-H"></i>Hit</span><span><i class="sw c-S"></i>Stand</span>
+        <span><i class="sw c-D"></i>Double (else hit)</span><span><i class="sw c-P"></i>Split</span>
+        <span><i class="sw c-R"></i>Surrender (else hit)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== STATS ===================== -->
+  <section class="view" id="v-stats">
+    <h2>Your Progress</h2>
+    <p class="lead">Everything is stored locally on this device — zero telemetry. Keep your accuracy above 95% across every mode before you take the count to a real table.</p>
+    <div class="grid g2">
+      <div class="panel"><h3>Basic strategy</h3>
+        <div class="stats-row"><div class="pill"><div class="v gold mono" id="st-bs-acc">—</div><div class="k">Accuracy</div></div><div class="pill"><div class="v mono" id="st-bs-hands">—</div><div class="k">Hands played</div></div><div class="pill"><div class="v mono" id="st-bs-best">—</div><div class="k">Best streak</div></div></div>
+      </div>
+      <div class="panel"><h3>Deviations</h3>
+        <div class="stats-row"><div class="pill"><div class="v gold mono" id="st-dv-acc">—</div><div class="k">Accuracy</div></div><div class="pill"><div class="v mono" id="st-dv-hands">—</div><div class="k">Plays</div></div><div class="pill"><div class="v mono" id="st-dv-best">—</div><div class="k">Best streak</div></div></div>
+      </div>
+      <div class="panel"><h3>Counting drills</h3>
+        <div class="stats-row"><div class="pill"><div class="v gold mono" id="st-cd-acc">—</div><div class="k">Exact-count rate</div></div><div class="pill"><div class="v mono" id="st-cd-hands">—</div><div class="k">Shoes counted</div></div></div>
+      </div>
+      <div class="panel"><h3>True count</h3>
+        <div class="stats-row"><div class="pill"><div class="v gold mono" id="st-tc-acc">—</div><div class="k">Accuracy</div></div><div class="pill"><div class="v mono" id="st-tc-hands">—</div><div class="k">Drills</div></div></div>
+      </div>
+    </div>
+    <div class="actions"><button class="btn ghost" onclick="resetStats()">Reset all stats</button></div>
+  </section>
+</div>
+
+<footer>DEVIL'S ACE • Don't Bust. Beat the House. • Local-first · offline · zero telemetry</footer>
+
+<!-- Settings modal -->
+<div class="modal" id="settings" onclick="if(event.target.id==='settings')closeSettings()">
+  <div class="panel">
+    <h2 style="font-size:22px">Rules &amp; System</h2>
+    <p class="lead" style="margin-bottom:14px">Trainer and chart update instantly to match.</p>
+    <div class="field"><label class="f">Number of decks</label>
+      <select id="set-decks"><option>1</option><option>2</option><option>4</option><option selected>6</option><option>8</option></select></div>
+    <div class="field"><label class="f">Counting system</label>
+      <select id="set-system">
+        <option value="hilo" selected>Hi-Lo (balanced, level 1)</option>
+        <option value="ko">KO (unbalanced, level 1)</option>
+        <option value="hiopt1">Hi-Opt I (balanced, level 1)</option>
+        <option value="omega2">Omega II (balanced, level 2)</option>
+        <option value="zen">Zen Count (balanced, level 2)</option>
+        <option value="red7">Red 7 (unbalanced, level 1)</option>
+      </select></div>
+    <div class="toggle"><div>Dealer hits soft 17 (H17)<div class="muted" style="font-size:11px">Off = dealer stands on soft 17</div></div>
+      <label class="switch"><input type="checkbox" id="set-h17"><span class="slider"></span></label></div>
+    <div class="toggle"><div>Double after split (DAS)</div>
+      <label class="switch"><input type="checkbox" id="set-das" checked><span class="slider"></span></label></div>
+    <div class="toggle"><div>Late surrender allowed</div>
+      <label class="switch"><input type="checkbox" id="set-surr" checked><span class="slider"></span></label></div>
+    <div class="actions"><button class="btn" onclick="saveSettings()">Save</button><button class="btn ghost" onclick="closeSettings()">Close</button></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   DEVIL'S ACE — blackjack advantage trainer
+   Single file, no external deps. All logic below.
+   ============================================================ */
+const SUITS = ['♠','♥','♦','♣'];
+const REDS = ['♥','♦'];
+const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const $ = id => document.getElementById(id);
+
+/* ---------- Settings ---------- */
+const DEF = {decks:6,system:'hilo',h17:false,das:true,surr:true};
+let RULES = load('da_rules', DEF);
+
+function load(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?structuredClone(d):v;}catch(e){return structuredClone(d);}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+
+/* ---------- Stats ---------- */
+let STATS = load('da_stats', {
+  bs:{right:0,total:0,streak:0,best:0},
+  dv:{right:0,total:0,streak:0,best:0},
+  cd:{right:0,total:0},
+  tc:{right:0,total:0}
+});
+function persistStats(){save('da_stats',STATS);}
+function pct(o){return o.total?Math.round(o.right/o.total*100)+'%':'100%';}
+
+/* ---------- Card helpers ---------- */
+function rankVal(r){ if(r==='A')return 11; if(['10','J','Q','K'].includes(r))return 10; return +r; }
+function randCard(){ const r=RANKS[Math.floor(Math.random()*RANKS.length)]; const s=SUITS[Math.floor(Math.random()*SUITS.length)]; return {r,s}; }
+function cardEl(c,extra=''){
+  const red = REDS.includes(c.s);
+  const d=document.createElement('div');
+  d.className='pcard '+(red?'red ':'')+extra;
+  d.innerHTML=`<div class="r">${c.r}</div><div class="s">${c.s}</div>`;
+  return d;
+}
+function handTotal(cards){ // returns {total, soft}
+  let total=0, aces=0;
+  for(const c of cards){ total+=rankVal(c.r); if(c.r==='A')aces++; }
+  let soft = aces>0;
+  while(total>21 && aces>0){ total-=10; aces--; }
+  soft = aces>0 && total<=21; // an ace still counted as 11
+  return {total, soft};
+}
+
+/* ============================================================
+   BASIC STRATEGY ENGINE  (multi-deck, S17/H17, DAS, surrender)
+   Returns one of H,S,D,P,R (R = surrender else hit)
+   ============================================================ */
+function basicStrategy(player, dealerUp, opt){
+  // opt: {canDouble, canSplit, canSurrender}
+  const rules = RULES;
+  const up = rankVal(dealerUp.r); // 2..11 (A=11)
+  const {total, soft} = handTotal(player);
+  const pair = player.length===2 && rankVal(player[0].r)===rankVal(player[1].r);
+  const canD = opt.canDouble !== false && player.length===2;
+  const canP = opt.canSplit !== false && pair;
+  const canR = opt.canSurrender !== false && player.length===2 && rules.surr;
+
+  // ----- Pairs -----
+  if(canP){
+    const pv = rankVal(player[0].r);
+    const das = rules.das;
+    if(pv===11) return 'P';                              // A,A always
+    if(pv===10) return 'S';                              // T,T never split
+    if(pv===9)  return (up===7||up>=10)?'S':'P';         // 9,9 stand vs 7,10,A
+    if(pv===8)  return 'P';                              // 8,8 always
+    if(pv===7)  return up<=7?'P':'H';                    // 2-7
+    if(pv===6)  return (up>=(das?2:3)&&up<=6)?'P':'H';   // 2-6 (DAS) / 3-6
+    if(pv===5)  return null;                             // fall through to hard 10
+    if(pv===4)  return (das&&(up===5||up===6))?'P':'H';  // 5-6 only with DAS
+    if(pv===3||pv===2) return (up>=(das?2:4)&&up<=7)?'P':'H'; // 2-7 (DAS) / 4-7
+  }
+
+  // ----- Soft totals -----
+  if(soft){
+    // total is the soft total (13..21)
+    if(total>=20) return 'S';                       // A9, A10
+    if(total===19){ if(rules.h17 && up===6 && canD) return 'D'; return 'S'; } // A8
+    if(total===18){
+      if(canD && up>=3 && up<=6) return 'D';
+      if(rules.h17 && canD && up===2) return 'D';
+      if(up===2||up===7||up===8) return 'S';
+      return 'H';                                    // vs 9,10,A
+    }
+    if(total===17){ return (canD && up>=3 && up<=6)?'D':'H'; }   // A6
+    if(total===16||total===15){ return (canD && up>=4 && up<=6)?'D':'H'; } // A5,A4
+    if(total===14||total===13){ return (canD && up>=5 && up<=6)?'D':'H'; } // A3,A2
+    return 'H';
+  }
+
+  // ----- Hard totals -----
+  if(total>=17){
+    if(total===17 && rules.h17 && canR && up===11) return 'R'; // 17v A late surr (H17)
+    return 'S';
+  }
+  if(total===16){
+    if(canR && (up===9||up>=10)) return 'R';
+    return (up>=2&&up<=6)?'S':'H';
+  }
+  if(total===15){
+    if(canR && (up===10 || (rules.h17 && up===11))) return 'R';
+    return (up>=2&&up<=6)?'S':'H';
+  }
+  if(total>=13&&total<=14){ return (up>=2&&up<=6)?'S':'H'; }
+  if(total===12){ return (up>=4&&up<=6)?'S':'H'; }
+  if(total===11){ if(!canD) return 'H'; if(up===11 && !rules.h17) return 'H'; return 'D'; } // 11: double 2-10 (S17), 2-A (H17)
+  if(total===10){ return (canD && up>=2 && up<=9)?'D':'H'; }
+  if(total===9){ return (canD && up>=3 && up<=6)?'D':'H'; }
+  return 'H'; // 5-8
+}
+// small correction: hard 11 vs Ace under S17 should hit (not double)
+function bsResolve(player,dealerUp,opt){
+  let a = basicStrategy(player,dealerUp,opt);
+  const {total,soft}=handTotal(player);
+  const up=rankVal(dealerUp.r);
+  if(!soft && total===11 && up===11 && !RULES.h17) a='H';
+  // if double recommended but not allowed -> hit (or stand for soft18)
+  if(a==='D' && (opt.canDouble===false || player.length!==2)){ a = (soft&&total>=18)?'S':'H'; }
+  if(a==='R' && (opt.canSurrender===false || !RULES.surr)) a='H';
+  if(a==='P' && opt.canSplit===false) a=null;
+  if(a===null){ // pair of 5s or split-not-allowed -> treat as hard total
+    const o2=Object.assign({},opt,{canSplit:false});
+    a=basicStrategy(player.map(c=>({r:c.r==='A'?'A':c.r,s:c.s})),dealerUp,o2)||'H';
+    if(a==='P')a='H';
+  }
+  return a;
+}
+const ACT = {H:'Hit',S:'Stand',D:'Double',P:'Split',R:'Surrender'};
+
+/* ============================================================
+   BASIC STRATEGY TRAINER
+   ============================================================ */
+let bsState=null;
+function bsDeal(){
+  $('bs-fb').className='fb'; $('bs-next').style.display='none';
+  $('bs-actions').style.display='flex';
+  // Random but realistic hand
+  let player=[randCard(),randCard()];
+  const dealer=[randCard()];
+  bsState={player,dealer};
+  renderHand('bs-dealer',dealer);
+  renderHand('bs-player',player);
+  const {total,soft}=handTotal(player);
+  const pair = rankVal(player[0].r)===rankVal(player[1].r);
+  $('bs-total').innerText=(pair?`pair of ${player[0].r}`:(soft?'soft ':'')+total);
+  // enable/disable split
+  document.querySelectorAll('#bs-actions .btn')[3].disabled=!pair;
+  document.querySelectorAll('#bs-actions .btn')[4].disabled=!RULES.surr;
+}
+function renderHand(id,cards){ const el=$(id); el.innerHTML=''; cards.forEach((c,i)=>{const e=cardEl(c);e.style.animationDelay=(i*60)+'ms';el.appendChild(e);}); }
+
+function bsAnswer(a){
+  if(!bsState) return;
+  const correct=bsResolve(bsState.player,bsState.dealer[0],{});
+  const ok=a===correct;
+  gradeBS(ok, correct, a);
+}
+function gradeBS(ok,correct,chosen){
+  STATS.bs.total++;
+  if(ok){STATS.bs.right++;STATS.bs.streak++;STATS.bs.best=Math.max(STATS.bs.best,STATS.bs.streak);}
+  else STATS.bs.streak=0;
+  persistStats(); refreshBSpills();
+  const fb=$('bs-fb'); fb.className='fb show '+(ok?'ok':'no');
+  fb.innerHTML = ok
+    ? `✓ Correct — <b>${ACT[correct]}</b>. ${bsWhy(correct)}`
+    : `✗ You chose ${ACT[chosen]||chosen}. Correct play is <b>${ACT[correct]}</b>. ${bsWhy(correct)}`;
+  $('bs-actions').style.display='none';
+  $('bs-next').style.display='flex';
+}
+function bsWhy(a){
+  const {total,soft}=handTotal(bsState.player);
+  const up=rankVal(bsState.dealer[0].r);
+  if(a==='S'&&up<=6) return 'Dealer shows a weak up-card and is likely to bust — let them.';
+  if(a==='H') return 'Not enough to stand against this up-card; take a card.';
+  if(a==='D') return 'A strong total against a weak dealer card — maximise the bet.';
+  if(a==='P') return 'Splitting turns one weak hand into two stronger starting hands.';
+  if(a==='R') return 'This hand loses more than half the time here — surrender saves EV.';
+  return '';
+}
+function refreshBSpills(){ $('bs-acc').innerText=pct(STATS.bs); $('bs-streak').innerText=STATS.bs.streak; $('bs-hands').innerText=STATS.bs.total; }
+
+/* ============================================================
+   COUNTING SYSTEMS
+   ============================================================ */
+const SYSTEMS = {
+  hilo:{name:'Hi-Lo',balanced:true,tag:c=>{const v=rankVal(c.r);if(v>=2&&v<=6)return 1;if(v>=10||c.r==='A')return -1;return 0;}},
+  ko:{name:'KO',balanced:false,tag:c=>{const v=rankVal(c.r);if((v>=2&&v<=6)||c.r==='7')return 1;if(v>=10||c.r==='A')return -1;return 0;}},
+  hiopt1:{name:'Hi-Opt I',balanced:true,tag:c=>{const v=rankVal(c.r);if(v>=3&&v<=6)return 1;if(v===10)return -1;return 0;}},
+  omega2:{name:'Omega II',balanced:true,tag:c=>{const v=rankVal(c.r);if(c.r==='A')return 0;if([2,3,7].includes(v))return 1;if([4,5,6].includes(v))return 2;if(v===9)return -1;if(v===10)return -2;return 0;}},
+  zen:{name:'Zen Count',balanced:true,tag:c=>{const v=rankVal(c.r);if(c.r==='A')return -1;if([2,3,7].includes(v))return 1;if([4,5,6].includes(v))return 2;if(v===10)return -2;return 0;}},
+  red7:{name:'Red 7',balanced:false,tag:c=>{const v=rankVal(c.r);if(v>=2&&v<=6)return 1;if(c.r==='7')return REDS.includes(c.s)?1:0;if(v>=10||c.r==='A')return -1;return 0;}}
+};
+function sys(){ return SYSTEMS[RULES.system]||SYSTEMS.hilo; }
+
+/* ============================================================
+   CARD COUNTING DRILL
+   ============================================================ */
+let cdRun=0, cdTimer=null;
+function cdSpeedLbl(){ $('cd-speedlbl').innerText=($('cd-speed').value/1000).toFixed(1)+' s'; }
+function cdStart(){
+  clearTimeout(cdTimer);
+  $('cd-fb').className='fb'; $('cd-answer').style.display='none';
+  $('cd-start').disabled=true;
+  const n=+$('cd-len').value, speed=+$('cd-speed').value;
+  const s=sys();
+  cdRun=0; let i=0;
+  const card=$('cd-card');
+  const step=()=>{
+    if(i>=n){ card.style.visibility='hidden'; $('cd-start').disabled=false; $('cd-answer').style.display='block'; $('cd-guess').value=''; $('cd-guess').focus(); return; }
+    const c=randCard(); cdRun+=s.tag(c);
+    card.style.visibility='visible';
+    card.className='pcard mid big-card'+(REDS.includes(c.s)?' red':'');
+    card.innerHTML=`<div class="r" style="position:absolute;top:10px;left:14px">${c.r}</div><span>${c.s}</span><div class="r" style="position:absolute;bottom:10px;right:14px;transform:rotate(180deg)">${c.r}</div>`;
+    card.style.animation='none'; void card.offsetWidth; card.style.animation='deal .2s';
+    i++; $('cd-progress').innerText=i+' / '+n;
+    cdTimer=setTimeout(step, speed);
+  };
+  step();
+}
+function cdCheck(){
+  const g=parseInt($('cd-guess').value,10);
+  const ok=g===cdRun;
+  STATS.cd.total++; if(ok)STATS.cd.right++; persistStats(); refreshStats();
+  const fb=$('cd-fb'); fb.className='fb show '+(ok?'ok':'no');
+  fb.innerHTML = ok ? `✓ Exactly right — running count is <b>${fmt(cdRun)}</b>.`
+    : `✗ You said ${fmt(g)}. The running count was <b>${fmt(cdRun)}</b>. Recount slower and keep pairs cancelling.`;
+}
+function fmt(n){return (n>0?'+':'')+n;}
+
+/* ============================================================
+   TRUE COUNT TRAINER
+   ============================================================ */
+let tcState=null;
+function tcNew(){
+  $('tc-fb').className='fb';
+  const decks=RULES.decks;
+  const run=Math.floor(Math.random()*25)-8;              // -8..+16
+  const cardsRem=Math.floor(Math.random()*(decks*52-26))+26;
+  const decksRem=cardsRem/52;
+  tcState={run,cardsRem,decksRem,answer:Math.round(run/decksRem)};
+  $('tc-run').innerText=fmt(run);
+  $('tc-cards').innerText=cardsRem;
+  $('tc-decks').innerText=decksRem.toFixed(1);
+  $('tc-guess').value=''; $('tc-guess').focus();
+}
+function tcCheck(){
+  if(!tcState)return;
+  const g=parseInt($('tc-guess').value,10);
+  const ok=g===tcState.answer;
+  STATS.tc.total++; if(ok)STATS.tc.right++; persistStats();
+  $('tc-acc').innerText=pct(STATS.tc); $('tc-count').innerText=STATS.tc.total; refreshStats();
+  const fb=$('tc-fb'); fb.className='fb show '+(ok?'ok':'no');
+  fb.innerHTML = `${ok?'✓ Correct':'✗'} — ${fmt(tcState.run)} ÷ ${tcState.decksRem.toFixed(2)} decks ≈ <b>${fmt(tcState.answer)}</b> true count.` + (ok?'':' Round to the nearest whole number.');
+  if(ok) setTimeout(tcNew,900);
+}
+
+/* ============================================================
+   DEVIATIONS — Illustrious 18 + Fab 4 (Hi-Lo indices)
+   type: play against index. action at/above index differs from basic.
+   ============================================================ */
+const DEVIATIONS = [
+  {desc:'16 vs 10',ptot:16,cards:['10','6'],up:'10',idx:0,at:'S',below:'H',note:'Stand at TC ≥ 0, otherwise hit.'},
+  {desc:'15 vs 10',ptot:15,cards:['10','5'],up:'10',idx:4,at:'S',below:'H',note:'Stand at TC ≥ +4.'},
+  {desc:'10,10 vs 5',ptot:20,cards:['10','10'],up:'5',idx:5,at:'P',below:'S',note:'Split tens at TC ≥ +5 (advanced).'},
+  {desc:'10,10 vs 6',ptot:20,cards:['10','10'],up:'6',idx:4,at:'P',below:'S',note:'Split tens at TC ≥ +4 (advanced).'},
+  {desc:'10 vs 10',ptot:10,cards:['6','4'],up:'10',idx:4,at:'D',below:'H',note:'Double 10 vs 10 at TC ≥ +4.'},
+  {desc:'12 vs 3',ptot:12,cards:['10','2'],up:'3',idx:2,at:'S',below:'H',note:'Stand at TC ≥ +2.'},
+  {desc:'12 vs 2',ptot:12,cards:['10','2'],up:'2',idx:3,at:'S',below:'H',note:'Stand at TC ≥ +3.'},
+  {desc:'11 vs A',ptot:11,cards:['6','5'],up:'A',idx:1,at:'D',below:'H',note:'Double at TC ≥ +1.'},
+  {desc:'9 vs 2',ptot:9,cards:['5','4'],up:'2',idx:1,at:'D',below:'H',note:'Double at TC ≥ +1.'},
+  {desc:'10 vs A',ptot:10,cards:['6','4'],up:'A',idx:4,at:'D',below:'H',note:'Double at TC ≥ +4.'},
+  {desc:'9 vs 7',ptot:9,cards:['5','4'],up:'7',idx:3,at:'D',below:'H',note:'Double at TC ≥ +3.'},
+  {desc:'16 vs 9',ptot:16,cards:['10','6'],up:'9',idx:5,at:'S',below:'H',note:'Stand at TC ≥ +5.'},
+  {desc:'13 vs 2',ptot:13,cards:['10','3'],up:'2',idx:-1,at:'S',below:'H',note:'Stand unless TC < −1.'},
+  {desc:'12 vs 4',ptot:12,cards:['10','2'],up:'4',idx:0,at:'S',below:'H',note:'Stand at TC ≥ 0.'},
+  {desc:'12 vs 5',ptot:12,cards:['10','2'],up:'5',idx:-2,at:'S',below:'H',note:'Stand unless TC < −2.'},
+  {desc:'12 vs 6',ptot:12,cards:['10','2'],up:'6',idx:-1,at:'S',below:'H',note:'Stand unless TC < −1.'},
+  {desc:'13 vs 3',ptot:13,cards:['10','3'],up:'3',idx:-2,at:'S',below:'H',note:'Stand unless TC < −2.'},
+  // Fab 4 surrender
+  {desc:'14 vs 10',ptot:14,cards:['10','4'],up:'10',idx:3,at:'R',below:'H',note:'Surrender at TC ≥ +3.',surr:true},
+  {desc:'15 vs 10',ptot:15,cards:['10','5'],up:'10',idx:0,at:'R',below:'S',note:'Surrender at TC ≥ 0 (else stand at ≥ +4).',surr:true},
+  {desc:'15 vs 9',ptot:15,cards:['10','5'],up:'9',idx:2,at:'R',below:'H',note:'Surrender at TC ≥ +2.',surr:true},
+  {desc:'15 vs A',ptot:15,cards:['10','5'],up:'A',idx:1,at:'R',below:'H',note:'Surrender at TC ≥ +1.',surr:true}
+];
+let dvState=null;
+function dvDeal(){
+  $('dv-fb').className='fb'; $('dv-next').style.display='none';
+  const d=DEVIATIONS[Math.floor(Math.random()*DEVIATIONS.length)];
+  // pick a TC in a range around the index so both sides come up
+  const tc=Math.floor(Math.random()*11)-4; // -4..+6
+  const correct = tc>=d.idx ? d.at : d.below;
+  dvState={d,tc,correct};
+  renderHand('dv-dealer',[{r:d.up,s:SUITS[Math.floor(Math.random()*4)]}]);
+  renderHand('dv-player',d.cards.map(r=>({r,s:SUITS[Math.floor(Math.random()*4)]})));
+  $('dv-hand-lbl').innerText=d.desc.split(' vs ')[0];
+  $('dv-tc').innerText=fmt(tc);
+  // build action buttons (only relevant options)
+  const opts = d.surr ? ['H','S','R'] : ['H','S','D','P'];
+  const act=$('dv-actions'); act.innerHTML='';
+  opts.forEach(o=>{const b=document.createElement('button');b.className='btn';b.innerText=ACT[o];b.onclick=()=>dvAnswer(o);act.appendChild(b);});
+  act.style.display='flex';
+}
+function dvAnswer(a){
+  if(!dvState)return;
+  const ok=a===dvState.correct;
+  STATS.dv.total++;
+  if(ok){STATS.dv.right++;STATS.dv.streak++;STATS.dv.best=Math.max(STATS.dv.best,STATS.dv.streak);}
+  else STATS.dv.streak=0;
+  persistStats(); refreshDVpills();
+  const fb=$('dv-fb'); fb.className='fb show '+(ok?'ok':'no');
+  fb.innerHTML=(ok?'✓ Correct — ':`✗ Correct play is <b>${ACT[dvState.correct]}</b>. `)+
+    `<b>${dvState.d.desc}</b>: ${dvState.d.note} (index ${fmt(dvState.d.idx)}, this hand TC ${fmt(dvState.tc)})`;
+  $('dv-actions').style.display='none'; $('dv-next').style.display='flex';
+}
+function refreshDVpills(){ $('dv-acc').innerText=pct(STATS.dv); $('dv-streak').innerText=STATS.dv.streak; $('dv-hands').innerText=STATS.dv.total; }
+
+/* ============================================================
+   EDGE SIMULATOR (Monte-Carlo model)
+   Per-hand EV modelled as linear in true count; bet ramps with TC.
+   ============================================================ */
+function evAtTC(tc){ // player edge fraction at a given true count (Hi-Lo, decent rules)
+  return (-0.005 + 0.005*tc) * (RULES.h17?0.98:1) + (RULES.surr?0.0002:0);
+}
+function betUnits(tc,maxSpread){
+  if(tc<1) return 1;                       // cover / minimum
+  return Math.min(maxSpread, Math.round(1+(tc-1)*(maxSpread-1)/4));
+}
+function runSim(){
+  $('sim-run').disabled=true; $('sim-note').innerText='Simulating…';
+  setTimeout(()=>{ // let UI paint
+    const bank0=+$('sim-bank').value, unit=+$('sim-unit').value, spread=+$('sim-spread').value;
+    const hands=+$('sim-hands').value, penDecks=+$('sim-pen').value, decks=6;
+    const trials=200, plotN=20;
+    const sd=1.14; // blackjack per-unit standard deviation
+    let evTotal=0, ruin=0, wagered=0;
+    const finals=[]; const paths=[];
+    for(let t=0;t<trials;t++){
+      let bank=bank0; let run=0, dealt=0; let busted=false;
+      const path=(t<plotN)?[bank]:null;
+      for(let h=0;h<hands;h++){
+        // reshuffle when penetration reached
+        if(dealt>=penDecks*52){ run=0; dealt=0; }
+        // simulate the count drifting; approximate TC from a random running count walk
+        run += (Math.random()*6-3);                 // rough per-hand count movement
+        dealt += 5.2;                                // ~cards seen per round (2-3 players)
+        const decksRem=Math.max(0.5,(decks*52-dealt)/52);
+        const tc=run/decksRem;
+        const units=betUnits(tc,spread);
+        const bet=units*unit;
+        const edge=evAtTC(tc);
+        // outcome ~ normal(mean=edge*bet, sd=sd*bet)
+        const z=gauss();
+        const result=edge*bet + sd*bet*z;
+        bank+=result;
+        if(t<plotN && h%Math.ceil(hands/120)===0) path.push(bank);
+        if(t===0) wagered+=bet;
+        if(bank<=0){ busted=true; if(path) path.push(0); break; }
+      }
+      if(busted) ruin++;
+      evTotal += (bank-bank0);
+      finals.push(bank);
+      if(path) paths.push(path);
+    }
+    finals.sort((a,b)=>a-b);
+    const median=finals[Math.floor(finals.length/2)];
+    const avgEV=evTotal/trials;
+    const houseEdgeApprox=(avgEV/ (wagered||1))*100;
+    $('sim-ev').innerText=(avgEV>=0?'+$':'-$')+Math.abs(Math.round(avgEV)).toLocaleString();
+    $('sim-ev').className='v mono '+(avgEV>=0?'gr':'rd');
+    $('sim-edge').innerText=(houseEdgeApprox>=0?'+':'')+houseEdgeApprox.toFixed(2)+'%';
+    $('sim-edge').className='v mono '+(houseEdgeApprox>=0?'gr':'rd');
+    $('sim-ror').innerText=Math.round(ruin/trials*100)+'%';
+    $('sim-ror').className='v mono '+(ruin/trials>0.15?'rd':'gr');
+    $('sim-final').innerText='$'+Math.round(median).toLocaleString();
+    drawSim(paths,bank0);
+    $('sim-note').innerText=`${trials} sessions × ${(+hands).toLocaleString()} hands each · ${plotN} trajectories plotted`;
+    $('sim-run').disabled=false;
+  },30);
+}
+// Box-Muller
+function gauss(){ let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function drawSim(paths,bank0){
+  const cv=$('sim-chart'); const ctx=cv.getContext('2d');
+  const W=cv.width=cv.clientWidth*devicePixelRatio, H=cv.height=180*devicePixelRatio;
+  ctx.clearRect(0,0,W,H);
+  let max=bank0,min=bank0;
+  paths.forEach(p=>p.forEach(v=>{max=Math.max(max,v);min=Math.min(min,v);}));
+  const pad=8*devicePixelRatio;
+  const x=i=>pad+(W-2*pad)*i;
+  const y=v=>H-pad-(H-2*pad)*((v-min)/((max-min)||1));
+  // zero/bankroll baseline
+  ctx.strokeStyle='rgba(255,255,255,.14)'; ctx.lineWidth=1*devicePixelRatio;
+  ctx.beginPath();ctx.moveTo(pad,y(bank0));ctx.lineTo(W-pad,y(bank0));ctx.stroke();
+  paths.forEach(p=>{
+    ctx.beginPath();
+    const end=p[p.length-1];
+    ctx.strokeStyle=end>=bank0?'rgba(55,201,139,.55)':'rgba(224,82,63,.5)';
+    ctx.lineWidth=1.3*devicePixelRatio;
+    p.forEach((v,i)=>{const px=x(i/(p.length-1||1)),py=y(v); i?ctx.lineTo(px,py):ctx.moveTo(px,py);});
+    ctx.stroke();
+  });
+}
+
+/* ============================================================
+   STRATEGY CHART RENDERER
+   ============================================================ */
+const UPCARDS=['2','3','4','5','6','7','8','9','10','A'];
+function chartCell(a){return `<td class="c-${a}">${a}</td>`;}
+function buildChart(){
+  RULES=RULES; // current
+  $('ch-rules').innerText=`${RULES.decks} decks · ${RULES.h17?'H17':'S17'} · ${RULES.das?'DAS':'NDAS'} · ${RULES.surr?'LS':'no surrender'}`;
+  // Hard totals 5..17 (17 trivial stand; show 8..16 meaningfully but include range)
+  let hard='<table class="chart"><tr><th>Hard</th>'+UPCARDS.map(u=>`<th>${u}</th>`).join('')+'</tr>';
+  for(let t=8;t<=17;t++){
+    hard+=`<tr><th>${t<=8?'≤8':t}</th>`;
+    for(const u of UPCARDS){
+      const player=makeHardHand(t);
+      const a=bsResolve(player,{r:u,s:'♠'},{canSurrender:true,canDouble:true});
+      hard+=chartCell(a);
+    }
+    hard+='</tr>';
+  }
+  hard+='</table>'; $('ch-hard').innerHTML=hard;
+  // Soft A2..A9
+  let soft='<table class="chart"><tr><th>Soft</th>'+UPCARDS.map(u=>`<th>${u}</th>`).join('')+'</tr>';
+  for(let x=2;x<=9;x++){
+    soft+=`<tr><th>A,${x}</th>`;
+    for(const u of UPCARDS){
+      const a=bsResolve([{r:'A',s:'♠'},{r:''+x,s:'♥'}],{r:u,s:'♠'},{canSurrender:false,canDouble:true});
+      soft+=chartCell(a);
+    }
+    soft+='</tr>';
+  }
+  soft+='</table>'; $('ch-soft').innerHTML=soft;
+  // Pairs
+  let pairs='<table class="chart"><tr><th>Pair</th>'+UPCARDS.map(u=>`<th>${u}</th>`).join('')+'</tr>';
+  for(const r of ['A','2','3','4','5','6','7','8','9','10']){
+    pairs+=`<tr><th>${r},${r}</th>`;
+    for(const u of UPCARDS){
+      const a=bsResolve([{r,s:'♠'},{r,s:'♥'}],{r:u,s:'♠'},{canSplit:true,canDouble:true,canSurrender:false});
+      pairs+=chartCell(a);
+    }
+    pairs+='</tr>';
+  }
+  pairs+='</table>'; $('ch-pairs').innerHTML=pairs;
+}
+function makeHardHand(t){
+  // build a 2-card hard hand summing to t with no ace and not a pair when possible
+  for(let a=2;a<=10;a++){ const b=t-a; if(b>=2&&b<=10&&!(a===b)) return [{r:''+(a===10?'10':a),s:'♠'},{r:''+(b===10?'10':b),s:'♥'}]; }
+  // fallback (e.g. very low): allow small
+  const b=t-2; return [{r:'2',s:'♠'},{r:''+(b<=10?b:10),s:'♥'}];
+}
+
+/* ============================================================
+   NAV / SETTINGS / INIT
+   ============================================================ */
+function switchView(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.v===name));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='v-'+name));
+  if(name==='chart') buildChart();
+  if(name==='stats') refreshStats();
+  if(name==='truecount' && !tcState) tcNew();
+  if(name==='deviations' && !dvState) dvDeal();
+}
+document.getElementById('tabs').addEventListener('click',e=>{const t=e.target.closest('.tab'); if(t)switchView(t.dataset.v);});
+
+function openSettings(){
+  $('set-decks').value=RULES.decks; $('set-system').value=RULES.system;
+  $('set-h17').checked=RULES.h17; $('set-das').checked=RULES.das; $('set-surr').checked=RULES.surr;
+  $('settings').classList.add('show');
+}
+function closeSettings(){ $('settings').classList.remove('show'); }
+function saveSettings(){
+  RULES={decks:+$('set-decks').value,system:$('set-system').value,h17:$('set-h17').checked,das:$('set-das').checked,surr:$('set-surr').checked};
+  save('da_rules',RULES);
+  $('cd-system').innerText=sys().name;
+  closeSettings(); bsDeal(); buildChart();
+}
+function refreshStats(){
+  refreshBSpills(); refreshDVpills();
+  $('st-bs-acc').innerText=pct(STATS.bs); $('st-bs-hands').innerText=STATS.bs.total; $('st-bs-best').innerText=STATS.bs.best;
+  $('st-dv-acc').innerText=pct(STATS.dv); $('st-dv-hands').innerText=STATS.dv.total; $('st-dv-best').innerText=STATS.dv.best;
+  $('st-cd-acc').innerText=pct(STATS.cd); $('st-cd-hands').innerText=STATS.cd.total;
+  $('st-tc-acc').innerText=pct(STATS.tc); $('st-tc-hands').innerText=STATS.tc.total;
+}
+function resetStats(){
+  if(!confirm('Reset all training stats on this device?'))return;
+  STATS={bs:{right:0,total:0,streak:0,best:0},dv:{right:0,total:0,streak:0,best:0},cd:{right:0,total:0},tc:{right:0,total:0}};
+  persistStats(); refreshStats();
+}
+
+/* keyboard */
+document.addEventListener('keydown',e=>{
+  if(e.target.matches('input,select'))return;
+  const active=document.querySelector('.view.active').id;
+  const k=e.key.toLowerCase();
+  if(active==='v-strategy'){
+    if($('bs-next').style.display!=='none' && (k===' '||k==='enter')){e.preventDefault();bsDeal();return;}
+    if('hsdpr'.includes(k) && $('bs-actions').style.display!=='none'){
+      const map={h:'H',s:'S',d:'D',p:'P',r:'R'};
+      const btn=[...document.querySelectorAll('#bs-actions .btn')].find(b=>b.innerText[0].toLowerCase()===k);
+      if(btn && !btn.disabled) bsAnswer(map[k]);
+    }
+  }
+});
+
+/* PWA */
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;$('installBtn').classList.remove('hidden');});
+function installPWA(){ if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;$('installBtn').classList.add('hidden');});}}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
+
+/* init */
+$('cd-system').innerText=sys().name;
+cdSpeedLbl();
+bsDeal();
+refreshStats();
+console.log('%c[Devil\'s Ace] Trainer ready. Don\'t bust. Beat the house.','color:#e8b04b');
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "Devil's Ace — Blackjack Advantage Trainer",
+  "short_name": "Devil's Ace",
+  "description": "Full blackjack card-counting and basic-strategy trainer: strategy drills, counting systems, true-count conversion, Illustrious 18 / Fab 4 deviations, and an edge simulator. Offline, local-first.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0a1410",
+  "theme_color": "#0a1410",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%230a1410'/%3E%3Ctext x='256' y='372' font-size='340' text-anchor='middle' fill='%23e8b04b'%3E%E2%99%A0%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "education", "productivity"],
+  "lang": "en"
+}
