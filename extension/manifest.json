@@ -2,7 +2,8 @@
   "manifest_version": 3,
   "name": "Devil's Ace — Blackjack Practice Coach",
   "version": "1.0.0",
-  "description": "Practice companion: overlay a card-counting HUD and basic-strategy coach while you DRILL blackjack. For training on free-play/practice tables only — not for real-money play.",
+  "description": "Practice-only blackjack trainer: card-counting HUD + basic-strategy & live index-play coach. Not for real-money gambling.",
+  "homepage_url": "https://github.com/atxgreene/Project_Devils_Ace",
   "permissions": ["activeTab", "scripting", "storage"],
   "background": { "service_worker": "background.js" },
   "commands": {

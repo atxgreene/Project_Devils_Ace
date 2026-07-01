@@ -24,6 +24,9 @@ A Manifest V3 companion to the [Devil's Ace trainer](../). It floats a draggable
 3. Click **Load unpacked** and select this `extension/` folder.
 4. Pin the ♠ icon, open a practice page, click the icon, set your system/rules, and hit **Show / hide overlay on this tab**.
 
+## Publishing to the Chrome Web Store
+To make it installable in one click (no developer mode), see [`store/SUBMISSION.md`](./store/SUBMISSION.md) for the step-by-step, [`store/LISTING.md`](./store/LISTING.md) for the ready-to-paste listing copy + permission justifications, and [`store/screenshots/`](./store/screenshots) for the 1280×800 assets. Privacy policy is hosted at https://atxgreene.github.io/Project_Devils_Ace/privacy.html. Publishing requires your own Google developer account (one-time $5) and passes through Google's review.
+
 ## Files
 - `manifest.json` — MV3 manifest
 - `popup.html` / `popup.js` — settings + inject/toggle button
