@@ -134,6 +134,22 @@
   .res-tag{font-weight:700;padding:2px 8px;border-radius:6px;font-size:11px;margin-left:6px}
   .res-tag.w{background:rgba(55,201,139,.2);color:var(--green)} .res-tag.l{background:rgba(224,82,63,.2);color:#ff9a8c} .res-tag.p{background:rgba(120,130,140,.25);color:#c9d3da}
   .coach-flag{color:#ff9a8c;font-size:12px;margin-top:6px}
+  /* Camera assist */
+  .badge-exp{font-size:10px;letter-spacing:2px;background:rgba(150,90,220,.22);color:#c9a6ff;border:1px solid rgba(150,90,220,.5);border-radius:6px;padding:3px 8px;text-transform:uppercase;margin-left:10px;vertical-align:middle}
+  .cam-stage{position:relative;border-radius:16px;overflow:hidden;background:#000;max-width:520px;margin:0 auto;aspect-ratio:4/3}
+  .cam-stage video{width:100%;height:100%;object-fit:cover;display:block}
+  .cam-reticle{position:absolute;top:50%;left:50%;width:46%;height:66%;transform:translate(-50%,-50%);border:2px dashed rgba(232,176,75,.85);border-radius:12px;box-shadow:0 0 0 3000px rgba(0,0,0,.34);pointer-events:none}
+  .cam-status{position:absolute;top:10px;left:10px;font-size:12px;background:rgba(7,25,35,.72);padding:6px 11px;border-radius:9px;color:var(--bone);backdrop-filter:blur(4px)}
+  .cam-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--slate);margin-right:6px;vertical-align:middle}
+  .cam-dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}
+  .keypad{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:14px}
+  .keypad button{padding:15px 0;font-size:16px;font-weight:700}
+  .keypad button.suggest{outline:2px solid #c9a6ff;outline-offset:1px}
+  .colorchip{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:14px}
+  .colorchip .sw2{width:15px;height:15px;border-radius:50%;border:1px solid var(--panel-border)}
+  .lastcards{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .lastcards .mini{font-family:ui-monospace,monospace;font-weight:700;font-size:13px;padding:4px 8px;border-radius:7px;background:var(--bg2);border:1px solid var(--panel-border)}
+  .lastcards .mini.red{color:#ff8b7a}
 </style>
 </head>
 <body>
@@ -160,6 +176,7 @@
     <button class="tab" data-v="count">CARD COUNTING</button>
     <button class="tab" data-v="truecount">TRUE COUNT</button>
     <button class="tab" data-v="deviations">DEVIATIONS</button>
+    <button class="tab" data-v="camera">CAMERA ASSIST</button>
     <button class="tab" data-v="sim">EDGE SIMULATOR</button>
     <button class="tab" data-v="chart">STRATEGY CHART</button>
     <button class="tab" data-v="stats">STATS</button>
@@ -349,6 +366,66 @@
       <p class="lead" style="margin-bottom:10px">The number is the true count at which the play flips. "≥" means take the deviation at that count or higher; a negative index means stay on the deviation until the count drops below it. These indices are for the <b>Hi-Lo</b> system — other systems have their own tables.</p>
       <div id="dv-index"></div>
     </div>
+  </section>
+
+  <!-- ===================== CAMERA COUNT ASSIST ===================== -->
+  <section class="view" id="v-camera">
+    <h2>Camera Count Assist <span class="badge-exp">Experimental</span></h2>
+    <p class="lead">Point your camera at the table and keep the count hands-light. The vision layer does what a browser can do reliably — detect when a card is in frame and read its <b>red/black colour</b> (which the Red 7 system needs) — while the app runs all the count, true-count and bet-sizing math. You tap each card's rank on the keypad (one tap); reliable in-browser rank OCR isn't solvable without shipping a big ML model, so rank stays a confirm, with an optional beta auto-guess.</p>
+
+    <div class="panel" id="cam-intro">
+      <h3>Start the assistant</h3>
+      <p class="lead" style="margin-bottom:14px">Grant camera access when prompted. Everything runs on-device — no video ever leaves your browser. No camera? The keypad and count still work in manual mode.</p>
+      <div class="actions">
+        <button class="btn" onclick="camStart()">Enable camera</button>
+        <button class="btn ghost" onclick="camStart(true)">Manual mode (no camera)</button>
+      </div>
+      <div class="fb" id="cam-err"></div>
+    </div>
+
+    <div id="cam-live" style="display:none">
+      <div class="cam-stage" id="cam-stage">
+        <video id="cam-video" playsinline muted autoplay></video>
+        <div class="cam-reticle"></div>
+        <div class="cam-status"><span class="cam-dot" id="cam-dot"></span><span id="cam-statustext">Looking for a card…</span></div>
+      </div>
+
+      <div class="stats-row" style="margin-top:16px">
+        <div class="pill"><div class="v mono gold" id="cam-run">0</div><div class="k">Running count</div></div>
+        <div class="pill"><div class="v mono" id="cam-tc">+0</div><div class="k">True count</div></div>
+        <div class="pill"><div class="v mono" id="cam-decks">6.0</div><div class="k">Decks left (est.)</div></div>
+        <div class="pill"><div class="v mono" id="cam-bet">$25</div><div class="k">Suggested bet</div></div>
+        <div class="pill"><div class="v mono" id="cam-seen">0</div><div class="k">Cards seen</div></div>
+      </div>
+
+      <div class="panel" style="margin-top:16px">
+        <div class="row" style="justify-content:space-between">
+          <div class="row" style="gap:14px">
+            <span class="muted" style="font-size:13px">Detected colour:</span>
+            <span class="colorchip" id="cam-color"><span class="sw2" style="background:#888"></span> —</span>
+          </div>
+          <label class="row" style="gap:8px;cursor:pointer;font-size:12.5px">Colour source
+            <select id="cam-colormode" style="width:auto"><option value="auto">Auto (camera)</option><option value="red">Force red</option><option value="black">Force black</option></select>
+          </label>
+        </div>
+        <div class="lbl" style="margin-top:14px">Tap the rank of the card in frame</div>
+        <div class="keypad" id="cam-keypad"></div>
+        <div class="row" style="margin-top:14px;justify-content:space-between">
+          <label class="row" style="gap:8px;cursor:pointer;font-size:12.5px"><span class="switch"><input type="checkbox" id="cam-autorank"><span class="slider"></span></span> Auto-rank guess <span class="badge-exp">beta</span></label>
+          <div class="row" style="gap:8px">
+            <label class="muted" style="font-size:12.5px">Decks in shoe
+              <input type="number" id="cam-deckcount" value="6" min="1" max="8" style="width:70px" oninput="camUpdate()"></label>
+          </div>
+        </div>
+        <div class="lastcards" id="cam-last"></div>
+        <div class="actions" style="margin-top:14px">
+          <button class="btn ghost sm" onclick="camUndo()">↶ Undo</button>
+          <button class="btn ghost sm" onclick="camResetCount()">Reset count</button>
+          <button class="btn ghost sm" onclick="camStop()">Stop camera</button>
+        </div>
+      </div>
+    </div>
+    <div class="disclaimer">⚠︎ Experimental practice aid. Colour and card-presence detection run on-device via the canvas pixel data; no images are uploaded or stored. Rank auto-guess is best-effort and often needs correcting — treat it as a hint, not truth. Using any device to count at a real table is prohibited by casinos and may be illegal in your jurisdiction; this is for at-home practice only.</div>
   </section>
 
   <!-- ===================== SIMULATOR ===================== -->
@@ -958,8 +1035,10 @@ function makeHardHand(t){
    NAV / SETTINGS / INIT
    ============================================================ */
 function switchView(name){
+  if(name!=='camera' && CAM.running) camStop();   // release the camera when leaving
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.v===name));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='v-'+name));
+  if(name==='camera'){ camBuildKeypad(); camUpdate(); }
   if(name==='chart') buildChart();
   if(name==='stats') refreshStats();
   if(name==='truecount' && !tcState) tcNew();
@@ -1190,6 +1269,121 @@ function plRender(){
   if(PLAY.phase==='player') plRenderActions();
 }
 
+/* ============================================================
+   CAMERA COUNT ASSIST (experimental)
+   On-device: card-presence + red/black colour via canvas pixels.
+   Count math is fully automated; rank is a one-tap keypad
+   (+ optional best-effort auto-guess). No frames leave the device.
+   ============================================================ */
+const CAM = { stream:null, running:false, manual:false, raf:null, lastT:0, cv:null, detectedColor:null, run:0, seen:[] };
+const CAM_RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+
+function camBuildKeypad(){
+  const kp=$('cam-keypad'); if(kp.dataset.built) return;
+  CAM_RANKS.forEach(r=>{ const b=document.createElement('button'); b.className='btn ghost'; b.textContent=r; b.dataset.rank=r; b.onclick=()=>camLog(r); kp.appendChild(b); });
+  kp.dataset.built='1';
+}
+async function camStart(manual){
+  $('cam-err').className='fb';
+  camBuildKeypad(); camUpdate();
+  $('cam-intro').style.display='none'; $('cam-live').style.display='block';
+  if(manual){ CAM.manual=true; $('cam-stage').style.display='none'; $('cam-statustext').innerText='Manual mode'; return; }
+  CAM.manual=false; $('cam-stage').style.display='';
+  try{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw {name:'unsupported'};
+    CAM.stream=await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ideal:'environment'} }, audio:false });
+    const v=$('cam-video'); v.srcObject=CAM.stream; await v.play().catch(()=>{});
+    CAM.running=true; CAM.lastT=0; camLoop();
+  }catch(e){
+    $('cam-err').className='fb show no';
+    $('cam-err').innerHTML='Camera unavailable ('+((e&&e.name)||'error')+'). You can still count in <b>Manual mode</b> — the keypad and math work without a camera.';
+    $('cam-stage').style.display='none'; CAM.manual=true; $('cam-statustext').innerText='Manual mode';
+  }
+}
+function camStop(){
+  if(CAM.raf) cancelAnimationFrame(CAM.raf); CAM.raf=null; CAM.running=false;
+  if(CAM.stream){ CAM.stream.getTracks().forEach(t=>t.stop()); CAM.stream=null; }
+  const v=$('cam-video'); if(v) v.srcObject=null;
+  $('cam-live').style.display='none'; $('cam-intro').style.display='block';
+  camHighlight(null);
+}
+function camLog(rank){
+  const mode=$('cam-colormode').value;
+  const red = mode==='red' ? true : mode==='black' ? false : (CAM.detectedColor==='red');
+  CAM.run += sys().tag({ r:rank, s: red?'♥':'♠' });
+  CAM.seen.push({ r:rank, red });
+  camUpdate();
+  $('cam-statustext').innerText = `Logged ${rank}${red?'♥':'♠'} — remove card`;
+}
+function camUndo(){ if(!CAM.seen.length) return; CAM.seen.pop(); camRecount(); camUpdate(); }
+function camResetCount(){ CAM.seen=[]; CAM.run=0; camUpdate(); }
+function camRecount(){ CAM.run = CAM.seen.reduce((a,c)=>a + sys().tag({r:c.r, s:c.red?'♥':'♠'}), 0); }
+function camUpdate(){
+  const decks=Math.max(1, +$('cam-deckcount').value||6);
+  const rem=Math.max(0.25, decks - CAM.seen.length/52);
+  const tc=CAM.run/rem;
+  $('cam-run').innerText=fmt(CAM.run);
+  $('cam-tc').innerText=fmt(Math.round(tc));
+  $('cam-decks').innerText=rem.toFixed(1);
+  $('cam-bet').innerText='$'+(betUnits(tc,8)*25).toLocaleString();
+  $('cam-seen').innerText=CAM.seen.length;
+  const el=$('cam-last'); el.innerHTML='';
+  CAM.seen.slice(-16).reverse().forEach(c=>{ const d=document.createElement('span'); d.className='mini'+(c.red?' red':''); d.textContent=c.r+(c.red?'♥':'♠'); el.appendChild(d); });
+}
+function camHighlight(rank){ document.querySelectorAll('#cam-keypad button').forEach(b=>b.classList.toggle('suggest', !!rank && b.dataset.rank===rank)); }
+function camLoop(){
+  if(!CAM.running) return;
+  CAM.raf=requestAnimationFrame(camLoop);
+  const now=performance.now(); if(now-CAM.lastT<120) return; CAM.lastT=now;
+  const v=$('cam-video'); if(!v || !v.videoWidth) return;
+  const cv=CAM.cv||(CAM.cv=document.createElement('canvas')); cv.width=60; cv.height=86;
+  const ctx=cv.getContext('2d',{willReadFrequently:true});
+  const vw=v.videoWidth, vh=v.videoHeight;
+  ctx.drawImage(v, 0.27*vw, 0.17*vh, 0.46*vw, 0.66*vh, 0, 0, 60, 86);
+  const d=ctx.getImageData(0,0,60,86).data;
+  let sum=0, ink=0, red=0; const tot=60*86;
+  for(let i=0;i<d.length;i+=4){ const r=d[i],g=d[i+1],b=d[i+2]; const lum=0.299*r+0.587*g+0.114*b; sum+=lum; if(lum<120){ ink++; if(r-Math.max(g,b)>26) red++; } }
+  const meanLum=sum/tot, inkFrac=ink/tot;
+  const present = meanLum>85 && inkFrac>0.02 && inkFrac<0.6;
+  CAM.detectedColor = ink<tot*0.015 ? null : (red/(ink||1)>0.33 ? 'red' : 'black');
+  $('cam-dot').classList.toggle('on', present);
+  const st=$('cam-statustext');
+  if(st.innerText.startsWith('Logged')){ if(!present) st.innerText='Looking for a card…'; }   // clear once the card is removed
+  else st.innerText = present ? 'Card detected — tap its rank' : 'Looking for a card…';
+  const c=CAM.detectedColor;
+  $('cam-color').innerHTML = `<span class="sw2" style="background:${c==='red'?'#e0523f':(c==='black'?'#222':'#888')}"></span> ${c?c[0].toUpperCase()+c.slice(1):'—'}`;
+  if($('cam-autorank').checked && present) camHighlight(camGuessRank(d)); else camHighlight(null);
+}
+// Best-effort rank guess from the top-left index corner (beta, often wrong)
+function camGuessRank(d){
+  const W=60, x0=3, y0=3, cw=24, ch=34, g=[];
+  for(let y=0;y<ch;y++){ g[y]=[]; for(let x=0;x<cw;x++){ const idx=((y+y0)*W+(x+x0))*4; const r=d[idx],gr=d[idx+1],b=d[idx+2]; const lum=0.299*r+0.587*gr+0.114*b; g[y][x]=(lum<120||r-Math.max(gr,b)>26)?1:0; } }
+  let ink=0; for(let y=0;y<ch;y++) for(let x=0;x<cw;x++) ink+=g[y][x];
+  const density=ink/(cw*ch);
+  if(density<0.04) return null;
+  const comps=floodCount(g,cw,ch,1), holes=countHoles(g,cw,ch);
+  if(comps>=2) return '10';
+  if(holes>=2) return '8';
+  if(holes===1) return density>0.22?'6':'A';
+  return density>0.28?'K':(density>0.2?'7':'2');
+}
+function floodCount(g,w,h,target){
+  const seen=Array.from({length:h},()=>new Array(w).fill(false)); let count=0;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ if(g[y][x]===target&&!seen[y][x]){ count++; const st=[[x,y]]; seen[y][x]=true;
+    while(st.length){ const [cx,cy]=st.pop(); [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{ const nx=cx+dx,ny=cy+dy; if(nx>=0&&ny>=0&&nx<w&&ny<h&&!seen[ny][nx]&&g[ny][nx]===target){ seen[ny][nx]=true; st.push([nx,ny]); } }); } } }
+  return count;
+}
+function countHoles(g,w,h){
+  const seen=Array.from({length:h},()=>new Array(w).fill(false)); const st=[];
+  for(let x=0;x<w;x++){ if(g[0][x]===0&&!seen[0][x]){seen[0][x]=true;st.push([x,0]);} if(g[h-1][x]===0&&!seen[h-1][x]){seen[h-1][x]=true;st.push([x,h-1]);} }
+  for(let y=0;y<h;y++){ if(g[y][0]===0&&!seen[y][0]){seen[y][0]=true;st.push([0,y]);} if(g[y][w-1]===0&&!seen[y][w-1]){seen[y][w-1]=true;st.push([w-1,y]);} }
+  while(st.length){ const [cx,cy]=st.pop(); [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{ const nx=cx+dx,ny=cy+dy; if(nx>=0&&ny>=0&&nx<w&&ny<h&&!seen[ny][nx]&&g[ny][nx]===0){ seen[ny][nx]=true; st.push([nx,ny]); } }); }
+  let holes=0; const hs=Array.from({length:h},()=>new Array(w).fill(false));
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ if(g[y][x]===0&&!seen[y][x]&&!hs[y][x]){ holes++; const st2=[[x,y]]; hs[y][x]=true;
+    while(st2.length){ const [cx,cy]=st2.pop(); [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{ const nx=cx+dx,ny=cy+dy; if(nx>=0&&ny>=0&&nx<w&&ny<h&&!hs[ny][nx]&&g[ny][nx]===0){ hs[ny][nx]=true; st2.push([nx,ny]); } }); } } }
+  return holes;
+}
+
 /* keyboard */
 document.addEventListener('keydown',e=>{
   if(e.target.matches('input,select'))return;
@@ -1202,6 +1396,11 @@ document.addEventListener('keydown',e=>{
       const btn=[...document.querySelectorAll('#bs-actions .btn')].find(b=>b.innerText[0].toLowerCase()===k);
       if(btn && !btn.disabled) bsAnswer(map[k]);
     }
+  }
+  if(active==='v-camera' && $('cam-live').style.display!=='none'){
+    let r=null; const m={'a':'A','t':'10','j':'J','q':'Q','k':'K'};
+    if(m[k]) r=m[k]; else if(/^[2-9]$/.test(k)) r=k; else if(k==='1'||k==='0') r='10';
+    if(r){ const btn=[...document.querySelectorAll('#cam-keypad button')].find(b=>b.dataset.rank===r); if(btn){ e.preventDefault(); camLog(r); } }
   }
   if(active==='v-play'){
     if(PLAY.phase==='bet' && (k===' '||k==='enter')){ e.preventDefault(); plDeal(); return; }
