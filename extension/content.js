@@ -19,6 +19,30 @@
     red7:{name:'Red 7',tag:c=>{const v=rankVal(c.r);if(v>=2&&v<=6)return 1;if(c.r==='7')return REDS.includes(c.s)?1:0;if(v>=10||c.r==='A')return -1;return 0;}}
   };
   const ACT = {H:'Hit',S:'Stand',D:'Double',P:'Split',R:'Surrender'};
+  // Illustrious 18 + Fab 4 (Hi-Lo indices). up is numeric (A=11). play = tc>=idx ? at : below.
+  const DEV = [
+    {desc:'16 v 10',t:16,up:10,idx:0,at:'S',below:'H'},
+    {desc:'15 v 10',t:15,up:10,idx:4,at:'S',below:'H'},
+    {desc:'T,T v 5',pair:10,up:5,idx:5,at:'P',below:'S'},
+    {desc:'T,T v 6',pair:10,up:6,idx:4,at:'P',below:'S'},
+    {desc:'10 v 10',t:10,up:10,idx:4,at:'D',below:'H'},
+    {desc:'12 v 3',t:12,up:3,idx:2,at:'S',below:'H'},
+    {desc:'12 v 2',t:12,up:2,idx:3,at:'S',below:'H'},
+    {desc:'11 v A',t:11,up:11,idx:1,at:'D',below:'H'},
+    {desc:'9 v 2',t:9,up:2,idx:1,at:'D',below:'H'},
+    {desc:'10 v A',t:10,up:11,idx:4,at:'D',below:'H'},
+    {desc:'9 v 7',t:9,up:7,idx:3,at:'D',below:'H'},
+    {desc:'16 v 9',t:16,up:9,idx:5,at:'S',below:'H'},
+    {desc:'13 v 2',t:13,up:2,idx:-1,at:'S',below:'H'},
+    {desc:'12 v 4',t:12,up:4,idx:0,at:'S',below:'H'},
+    {desc:'12 v 5',t:12,up:5,idx:-2,at:'S',below:'H'},
+    {desc:'12 v 6',t:12,up:6,idx:-1,at:'S',below:'H'},
+    {desc:'13 v 3',t:13,up:3,idx:-2,at:'S',below:'H'},
+    {desc:'14 v 10',t:14,up:10,idx:3,at:'R',below:'H'},
+    {desc:'15 v 10',t:15,up:10,idx:0,at:'R',below:'H'},
+    {desc:'15 v 9',t:15,up:9,idx:2,at:'R',below:'H'},
+    {desc:'15 v A',t:15,up:11,idx:1,at:'R',below:'H'}
+  ];
   function basicStrategy(player, up, opt, R){
     const {total,soft}=handTotal(player);
     const pair=player.length===2 && rankVal(player[0].r)===rankVal(player[1].r);
@@ -52,6 +76,39 @@
   }
   function betUnits(tc){ if(tc<1)return 1; return Math.min(8,Math.round(1+(tc-1)*7/4)); }
   const fmt = n => (n>0?'+':'')+n;
+
+  // count-aware coach: basic strategy + live Illustrious 18 / Fab 4 index plays
+  function liveTC(){ const rem=Math.max(0.25, R.decks - seen/52); return run/rem; }
+  function coachResolve(player, upCard){
+    const up=rankVal(upCard.r);
+    const {total,soft}=handTotal(player);
+    const two=player.length===2;
+    const pair = two && rankVal(player[0].r)===rankVal(player[1].r) ? rankVal(player[0].r) : null;
+    const base=bsResolve(player, upCard, {canDouble:two, canSplit:two, canSurrender:two}, R);
+    const tc=Math.round(liveTC());
+    const matches=DEV.filter(d => d.up===up && (d.pair!=null ? pair===d.pair : (!soft && pair==null && total===d.t)));
+    const active=[];
+    for(const d of matches){
+      const trig = d.idx>=0 ? tc>=d.idx : tc<d.idx;
+      if(!trig) continue;
+      const act = d.idx>=0 ? d.at : d.below;
+      if(act==='R' && (!R.surr || !two)) continue;
+      if(act==='D' && !two) continue;
+      if(act==='P' && pair==null) continue;
+      active.push({act,d});
+    }
+    let headline=base, deviated=false;
+    if(active.length){
+      const pick = active.find(x=>x.act!=='R') || active[0];
+      if(pick.act!==base){ headline=pick.act; deviated=true; }
+    }
+    return {headline, base, deviated, matches, active, tc, insurance: up===11 && tc>=3};
+  }
+  function devRuleText(d, rr){
+    const on = rr.active.some(x=>x.d===d);
+    const rule = d.idx>=0 ? `${ACT[d.at]} at TC ≥ ${fmt(d.idx)}` : `${ACT[d.below]} when TC < ${fmt(d.idx)}`;
+    return `${on?'✓':'·'} ${d.desc}: ${rule}${on?' — active now':''}`;
+  }
 
   /* ---------- settings ---------- */
   const DEF={system:'hilo',decks:6,h17:false,das:true,surr:true};
@@ -105,6 +162,9 @@
     .num{width:46px;background:#0d1a15;border:1px solid rgba(255,255,255,.12);color:#e9efe9;border-radius:7px;padding:5px;font-size:12px;text-align:center}
     .coach-res{margin-top:10px;padding:11px;border-radius:10px;text-align:center;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
     .coach-res .big{font-size:22px;font-weight:800;color:#37c98b} .coach-res .sm{font-size:11px;color:#8ea79a;margin-top:2px}
+    .coach-res.dev{border-color:#e8b04b;background:rgba(232,176,75,.08)} .coach-res.dev .big{color:#e8b04b}
+    .dev-badge{display:inline-block;margin-top:7px;font-size:9.5px;font-weight:800;letter-spacing:1px;color:#0a1410;background:#e8b04b;border-radius:6px;padding:3px 8px}
+    .dev-note{font-size:10.5px;color:#9fb3a8;margin-top:9px;line-height:1.55;text-align:left}
     .lbl{font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:#8ea79a;margin:2px 0 6px}
     .seenrow{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;max-height:44px;overflow:hidden}
     .seenrow span{font-size:10px;font-family:ui-monospace,monospace;padding:2px 5px;border-radius:5px;background:rgba(255,255,255,.06)} .seenrow span.r{color:#ff8b7a}
@@ -152,11 +212,14 @@
   function coachHTML(){
     let res='';
     if(coachUp && coachPlayer.length>=2){
-      const opt={canDouble:coachPlayer.length===2, canSplit:coachPlayer.length===2, canSurrender:coachPlayer.length===2};
-      const a=bsResolve(coachPlayer,{r:coachUp,s:'♠'},opt,R);
+      const rr=coachResolve(coachPlayer,{r:coachUp,s:'♠'});
       const t=handTotal(coachPlayer);
-      res=`<div class="coach-res"><div class="big">${ACT[a]}</div><div class="sm">${(t.soft?'soft ':'')+t.total} vs dealer ${coachUp} · ${R.h17?'H17':'S17'}/${R.das?'DAS':'NDAS'}/${R.surr?'LS':'no LS'}</div></div>`;
-    } else res=`<div class="coach-res"><div class="sm">Pick the dealer up-card and add your cards to see the correct basic-strategy play.</div></div>`;
+      const badge = rr.deviated ? `<div class="dev-badge">⚡ INDEX DEVIATION</div>` : '';
+      const baseline = rr.deviated ? `<div class="sm">Basic strategy is ${ACT[rr.base]} — deviate on this count.</div>` : '';
+      const idx = rr.matches.length ? `<div class="dev-note">${rr.matches.map(d=>devRuleText(d,rr)).join('<br>')}</div>` : '';
+      const ins = rr.insurance ? `<div class="dev-note">＋ Take insurance (dealer Ace, TC ≥ +3)</div>` : '';
+      res=`<div class="coach-res ${rr.deviated?'dev':''}"><div class="big">${ACT[rr.headline]}</div>${badge}<div class="sm">${(t.soft?'soft ':'')+t.total} vs dealer ${coachUp} · true count ${fmt(rr.tc)}</div>${baseline}${idx}${ins}</div>`;
+    } else res=`<div class="coach-res"><div class="sm">Pick the dealer up-card and add your cards. The play reflects your <b>live true count</b> from the Count tab, flagging Illustrious 18 / Fab 4 index deviations.</div></div>`;
     return `
       <div class="lbl">Dealer up-card</div>
       <div class="kp" id="da-up">${RANKS.map(r=>`<button data-u="${r}" class="${coachUp===r?'sel':''}">${r}</button>`).join('')}</div>
@@ -196,7 +259,8 @@
   window.addEventListener('mousemove',e=>{ if(!drag)return; wrap.style.left=(e.clientX-drag.dx)+'px'; wrap.style.top=(e.clientY-drag.dy)+'px'; wrap.style.right='auto'; });
   window.addEventListener('mouseup',()=>drag=null);
 
-  window.__devilsAce={ toggle:()=>{ host.style.display = host.style.display==='none'?'':'none'; } };
+  window.__devilsAce={ toggle:()=>{ host.style.display = host.style.display==='none'?'':'none'; },
+    _t:{ coachResolve, set:(r,s)=>{ run=r; seen=s; } } };
   loadSettings();
   render();
 })();

@@ -4,6 +4,13 @@
   "version": "1.0.0",
   "description": "Practice companion: overlay a card-counting HUD and basic-strategy coach while you DRILL blackjack. For training on free-play/practice tables only — not for real-money play.",
   "permissions": ["activeTab", "scripting", "storage"],
+  "background": { "service_worker": "background.js" },
+  "commands": {
+    "toggle-overlay": {
+      "suggested_key": { "default": "Alt+Shift+C", "mac": "Alt+Shift+C" },
+      "description": "Show / hide the Devil's Ace practice overlay"
+    }
+  },
   "action": {
     "default_popup": "popup.html",
     "default_title": "Devil's Ace practice coach",
