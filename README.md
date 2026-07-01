@@ -6,11 +6,12 @@
 
 ## Modes
 
+- **Play a Shoe** — A live, playable multi-deck table for virtual money. The running/true count updates as cards come out, the app suggests a bet off the true count, and an optional **coach** flags any deviation from correct strategy in real time. Full rules: hit/stand/double/split (to 4 hands)/surrender, dealer H17/S17, blackjack pays 3:2, dealer peek, count-based insurance, and a shuffle at ~75% penetration. Bankroll and the shoe persist across hands; you can hide the count to practice keeping it yourself.
 - **Basic Strategy Trainer** — Deals random hands; you pick Hit / Stand / Double / Split / Surrender and get instant feedback with the reasoning. Accuracy, streak, and hand counters persist locally. Perfect play cuts the house edge to ~0.5%.
 - **Card Counting Drill** — Cards flash one at a time at an adjustable speed; keep the running count and enter it at the end. Supports six systems: **Hi-Lo, KO, Hi-Opt I, Omega II, Zen Count, Red 7** (balanced & unbalanced, level 1 & 2).
 - **True Count Conversion** — Drill the running-count ÷ decks-remaining division that actually drives your bets and deviations.
 - **Deviations — Illustrious 18 + Fab 4** — Given a hand and a true count, choose the correct index play. This is where most of a counter's added edge comes from.
-- **Edge Simulator** — Monte-Carlo model of a counting session: set rules, bankroll, bet spread, and penetration, then see expected value, player edge, risk of ruin, and sampled bankroll trajectories.
+- **Edge Simulator** — Monte-Carlo model of a counting session with **back-counting / Wonging** (enter only above a chosen true count), optional **Kelly bet sizing**, and a full metrics panel: expected $/session and $/hour, player edge, session standard deviation, risk of ruin, share of sessions in profit, median end bankroll, and **N0** (hands needed to overcome one SD of variance), plus sampled bankroll trajectories.
 - **Live Strategy Chart** — Full hard / soft / pairs chart that regenerates instantly for your exact rules.
 
 ## Rules engine

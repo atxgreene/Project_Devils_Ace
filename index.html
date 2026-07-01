@@ -120,6 +120,20 @@
   .switch input:checked+.slider{background:var(--gold)}
   .switch input:checked+.slider:before{transform:translateX(20px)}
   .disclaimer{font-size:11px;color:var(--muted);line-height:1.5;margin-top:14px;padding:12px 14px;border:1px dashed var(--panel-border);border-radius:12px}
+  /* Play mode */
+  .hud{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+  .penbar{height:8px;background:var(--bg2);border-radius:6px;overflow:hidden;margin-top:12px}
+  .penbar>div{height:100%;background:linear-gradient(90deg,var(--gold2),var(--gold));transition:width .3s}
+  .phands{display:flex;gap:16px;flex-wrap:wrap}
+  .phand{padding:10px 12px;border-radius:14px;border:1px solid transparent;transition:.15s}
+  .phand.active{border-color:var(--gold);background:rgba(232,176,75,.07)}
+  .phand.win{border-color:var(--green)} .phand.lose{border-color:var(--red)} .phand.push{border-color:var(--slate)}
+  .phand .meta{font-size:12px;color:var(--muted);margin-top:8px}
+  .chiprow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .count-tog.hide{filter:blur(8px)}
+  .res-tag{font-weight:700;padding:2px 8px;border-radius:6px;font-size:11px;margin-left:6px}
+  .res-tag.w{background:rgba(55,201,139,.2);color:var(--green)} .res-tag.l{background:rgba(224,82,63,.2);color:#ff9a8c} .res-tag.p{background:rgba(120,130,140,.25);color:#c9d3da}
+  .coach-flag{color:#ff9a8c;font-size:12px;margin-top:6px}
 </style>
 </head>
 <body>
@@ -142,6 +156,7 @@
 <div class="wrap">
   <div class="tabs" id="tabs">
     <button class="tab active" data-v="strategy">BASIC STRATEGY</button>
+    <button class="tab" data-v="play">PLAY A SHOE</button>
     <button class="tab" data-v="count">CARD COUNTING</button>
     <button class="tab" data-v="truecount">TRUE COUNT</button>
     <button class="tab" data-v="deviations">DEVIATIONS</button>
@@ -177,6 +192,72 @@
       </div>
     </div>
     <p class="kbd" style="margin-top:10px">Keys: <b>H</b> hit · <b>S</b> stand · <b>D</b> double · <b>P</b> split · <b>R</b> surrender · <b>Space/Enter</b> next</p>
+  </section>
+
+  <!-- ===================== PLAY A SHOE ===================== -->
+  <section class="view" id="v-play">
+    <h2>Play a Shoe</h2>
+    <p class="lead">Everything in one place: a live multi-deck shoe you play for (virtual) money. The count runs as cards come out, the app suggests a bet off the true count, and an optional coach flags any deviation from correct strategy. Bankroll and the shoe persist across hands until penetration triggers a shuffle.</p>
+
+    <div class="panel" style="margin-bottom:16px">
+      <div class="hud">
+        <div class="stats-row" style="flex:1">
+          <div class="pill"><div class="v mono gold" id="pl-bank">$5,000</div><div class="k">Bankroll</div></div>
+          <div class="pill"><div class="v mono" id="pl-pl">$0</div><div class="k">Session P/L</div></div>
+          <div class="pill"><div class="v mono count-tog" id="pl-run" onclick="plToggleCount()">0</div><div class="k">Running count</div></div>
+          <div class="pill"><div class="v mono count-tog" id="pl-tc" onclick="plToggleCount()">+0</div><div class="k">True count</div></div>
+          <div class="pill"><div class="v mono" id="pl-decks">6.0</div><div class="k">Decks left</div></div>
+        </div>
+      </div>
+      <div class="penbar" title="Shoe penetration"><div id="pl-pen" style="width:0%"></div></div>
+      <div class="row" style="margin-top:12px;gap:18px">
+        <label class="row" style="gap:8px;cursor:pointer;font-size:13px"><span class="switch"><input type="checkbox" id="pl-showcount" checked onchange="plRender()"><span class="slider"></span></span> Show count</label>
+        <label class="row" style="gap:8px;cursor:pointer;font-size:13px"><span class="switch"><input type="checkbox" id="pl-coach" checked><span class="slider"></span></span> Coach my mistakes</label>
+        <span class="muted mono" style="font-size:12px">Strategy errors this session: <b id="pl-mistakes" class="rd">0</b></span>
+        <button class="btn ghost sm" style="margin-left:auto" onclick="plResetBank()">Reset bankroll</button>
+      </div>
+    </div>
+
+    <div class="felt">
+      <div class="lbl">Dealer <span id="pl-dtot" class="muted"></span></div>
+      <div class="hand" id="pl-dealer"></div>
+
+      <div class="lbl" style="margin-top:20px">Your hand(s)</div>
+      <div class="phands" id="pl-player"></div>
+
+      <div class="fb" id="pl-msg"></div>
+
+      <!-- Betting phase -->
+      <div id="pl-bet-ctrl" style="margin-top:18px">
+        <div class="row" style="justify-content:space-between">
+          <div>
+            <div class="lbl">Your bet</div>
+            <div class="chiprow">
+              <button class="btn ghost sm" onclick="plChip(-25)">−25</button>
+              <div class="mono gold" id="pl-bet" style="font-size:26px;min-width:90px;text-align:center">$50</div>
+              <button class="btn ghost sm" onclick="plChip(25)">+25</button>
+              <button class="btn ghost sm" onclick="plChip(100)">+100</button>
+              <button class="btn ghost sm" onclick="plBetSuggested()">Use suggested</button>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div class="lbl">Suggested (count-based)</div>
+            <div class="mono" id="pl-suggest" style="font-size:20px">$50</div>
+          </div>
+        </div>
+        <div class="actions"><button class="btn" onclick="plDeal()">Deal ♠</button></div>
+      </div>
+
+      <!-- Action phase -->
+      <div class="actions" id="pl-actions" style="display:none"></div>
+
+      <!-- Between-hands -->
+      <div class="actions" id="pl-next" style="display:none">
+        <button class="btn" onclick="plNewHand()">Next hand →</button>
+        <button class="btn ghost" onclick="plNewShoe(true)">Shuffle new shoe</button>
+      </div>
+    </div>
+    <div class="disclaimer">Virtual bankroll only — no real money, no gambling. This is a practice table so you can rehearse bet sizing and play decisions with the count live. Insurance is auto-handled (declined; taken only at TC ≥ +3 when the coach is on).</div>
   </section>
 
   <!-- ===================== CARD COUNTING ===================== -->
@@ -263,6 +344,11 @@
         <button class="btn ghost" onclick="dvDeal()">Next play →</button>
       </div>
     </div>
+    <div class="panel" style="margin-top:16px">
+      <h3>Index reference — Hi-Lo</h3>
+      <p class="lead" style="margin-bottom:10px">The number is the true count at which the play flips. "≥" means take the deviation at that count or higher; a negative index means stay on the deviation until the count drops below it. These indices are for the <b>Hi-Lo</b> system — other systems have their own tables.</p>
+      <div id="dv-index"></div>
+    </div>
   </section>
 
   <!-- ===================== SIMULATOR ===================== -->
@@ -285,6 +371,16 @@
           <input type="range" id="sim-pen" min="3" max="5.5" step="0.25" value="4.5" oninput="document.getElementById('sim-penlbl').innerText=this.value">
           <div class="muted mono" style="font-size:12px"><span id="sim-penlbl">4.5</span> / 6 decks</div>
         </div>
+        <div class="toggle"><div>Back-counting / Wonging<div class="muted" style="font-size:11px">Only play when the count is good; sit out the rest</div></div>
+          <label class="switch"><input type="checkbox" id="sim-wong" onchange="document.getElementById('sim-wongrow').style.display=this.checked?'block':'none'"><span class="slider"></span></label></div>
+        <div class="field" id="sim-wongrow" style="display:none"><label class="f">Enter table at true count ≥</label>
+          <input type="range" id="sim-wongtc" min="0" max="5" step="1" value="1" oninput="document.getElementById('sim-wongtclbl').innerText='+'+this.value">
+          <div class="muted mono" style="font-size:12px">TC <span id="sim-wongtclbl">+1</span></div>
+        </div>
+        <div class="toggle"><div>Kelly bet sizing<div class="muted" style="font-size:11px">Size bets by edge × bankroll instead of a fixed spread</div></div>
+          <label class="switch"><input type="checkbox" id="sim-kelly"><span class="slider"></span></label></div>
+        <div class="field"><label class="f">Rounds per hour (for hourly EV)</label>
+          <input type="number" id="sim-rph" value="100" class="mono"></div>
         <div class="actions"><button class="btn" id="sim-run" onclick="runSim()">Run simulation</button></div>
       </div>
       <div class="panel">
@@ -294,8 +390,16 @@
           <div class="pill"><div class="v mono" id="sim-edge">—</div><div class="k">Player edge</div></div>
         </div>
         <div class="stats-row" style="margin-top:10px">
+          <div class="pill"><div class="v mono" id="sim-hourly">—</div><div class="k">Expected $/hour</div></div>
+          <div class="pill"><div class="v mono" id="sim-sd">—</div><div class="k">Session std dev</div></div>
+        </div>
+        <div class="stats-row" style="margin-top:10px">
           <div class="pill"><div class="v mono" id="sim-ror">—</div><div class="k">Risk of ruin</div></div>
+          <div class="pill"><div class="v mono" id="sim-win">—</div><div class="k">Sessions in profit</div></div>
+        </div>
+        <div class="stats-row" style="margin-top:10px">
           <div class="pill"><div class="v mono" id="sim-final">—</div><div class="k">Median end bankroll</div></div>
+          <div class="pill"><div class="v mono" id="sim-n0">—</div><div class="k">N0 (hands to beat variance)</div></div>
         </div>
         <canvas id="sim-chart" height="180" style="margin-top:16px"></canvas>
         <div class="muted mono" style="font-size:11px;margin-top:8px" id="sim-note">Run to plot 20 sample bankroll trajectories.</div>
@@ -693,7 +797,7 @@ function refreshDVpills(){ $('dv-acc').innerText=pct(STATS.dv); $('dv-streak').i
    Per-hand EV modelled as linear in true count; bet ramps with TC.
    ============================================================ */
 function evAtTC(tc){ // player edge fraction at a given true count (Hi-Lo, decent rules)
-  return (-0.005 + 0.005*tc) * (RULES.h17?0.98:1) + (RULES.surr?0.0002:0);
+  return (-0.005 + 0.005*tc) * (RULES.h17?0.97:1) + (RULES.surr?0.0002:0);
 }
 function betUnits(tc,maxSpread){
   if(tc<1) return 1;                       // cover / minimum
@@ -704,50 +808,75 @@ function runSim(){
   setTimeout(()=>{ // let UI paint
     const bank0=+$('sim-bank').value, unit=+$('sim-unit').value, spread=+$('sim-spread').value;
     const hands=+$('sim-hands').value, penDecks=+$('sim-pen').value, decks=6;
-    const trials=200, plotN=20;
-    const sd=1.14; // blackjack per-unit standard deviation
-    let evTotal=0, ruin=0, wagered=0;
-    const finals=[]; const paths=[];
+    const wong=$('sim-wong').checked, wongTC=+$('sim-wongtc').value, kelly=$('sim-kelly').checked;
+    const rph=Math.max(1,+$('sim-rph').value);
+    const trials=300, plotN=20;
+    const sdUnit=1.14; // blackjack per-unit standard deviation
+    let evTotal=0, ruin=0, wagered=0, played=0, playedT0=0; // for edge & hands-played
+    const finals=[]; const paths=[]; const netEVs=[];
     for(let t=0;t<trials;t++){
       let bank=bank0; let run=0, dealt=0; let busted=false;
       const path=(t<plotN)?[bank]:null;
       for(let h=0;h<hands;h++){
-        // reshuffle when penetration reached
-        if(dealt>=penDecks*52){ run=0; dealt=0; }
-        // simulate the count drifting; approximate TC from a random running count walk
-        run += (Math.random()*6-3);                 // rough per-hand count movement
-        dealt += 5.2;                                // ~cards seen per round (2-3 players)
+        if(dealt>=penDecks*52){ run=0; dealt=0; }              // reshuffle at penetration
+        run += (Math.random()*6-3);                             // rough per-hand count movement
+        dealt += 5.2;                                           // ~cards seen per round
         const decksRem=Math.max(0.5,(decks*52-dealt)/52);
         const tc=run/decksRem;
-        const units=betUnits(tc,spread);
-        const bet=units*unit;
+        if(wong && tc<wongTC){ continue; }                      // back-counting: sit this one out
         const edge=evAtTC(tc);
-        // outcome ~ normal(mean=edge*bet, sd=sd*bet)
+        let bet;
+        if(kelly){
+          // Kelly: fraction of bankroll ≈ edge / variance; cap at spread units, floor at 0 when -EV
+          const f=Math.max(0, edge/(sdUnit*sdUnit));
+          bet=Math.min(spread*unit, Math.max(edge>0?unit:0, Math.round(f*bank)));
+          if(bet<=0){ if(!wong) bet=0; else continue; }
+        } else {
+          bet=betUnits(tc,spread)*unit;
+        }
+        if(bet<=0) continue;
         const z=gauss();
-        const result=edge*bet + sd*bet*z;
-        bank+=result;
+        bank += edge*bet + sdUnit*bet*z;
+        played++; if(t===0){ wagered+=bet; playedT0++; }
         if(t<plotN && h%Math.ceil(hands/120)===0) path.push(bank);
-        if(t===0) wagered+=bet;
         if(bank<=0){ busted=true; if(path) path.push(0); break; }
       }
       if(busted) ruin++;
-      evTotal += (bank-bank0);
+      const net=bank-bank0;
+      evTotal += net; netEVs.push(net);
       finals.push(bank);
       if(path) paths.push(path);
     }
     finals.sort((a,b)=>a-b);
     const median=finals[Math.floor(finals.length/2)];
     const avgEV=evTotal/trials;
-    const houseEdgeApprox=(avgEV/ (wagered||1))*100;
+    const handsPer=played/trials;
+    const houseEdgeApprox=(avgEV/(wagered||1))*100;
+    const perHourEV = handsPer>0 ? avgEV*(rph/handsPer) : 0;
+    // session std dev
+    const mean=avgEV; const variance=netEVs.reduce((a,n)=>a+(n-mean)*(n-mean),0)/trials; const sd=Math.sqrt(variance);
+    const winRate=Math.round(netEVs.filter(n=>n>0).length/trials*100);
+    // N0 = hands to reach 1 SD of EV over risk (per-hand): (sd_perhand/ev_perhand)^2
+    const avgBet=wagered/(playedT0||1);
+    const evPerHand=avgEV/(handsPer||1);
+    const sdPerHand=sdUnit*avgBet;
+    const n0 = evPerHand>0 ? Math.round(Math.pow(sdPerHand/evPerHand,2)) : Infinity;
+
     $('sim-ev').innerText=(avgEV>=0?'+$':'-$')+Math.abs(Math.round(avgEV)).toLocaleString();
     $('sim-ev').className='v mono '+(avgEV>=0?'gr':'rd');
     $('sim-edge').innerText=(houseEdgeApprox>=0?'+':'')+houseEdgeApprox.toFixed(2)+'%';
     $('sim-edge').className='v mono '+(houseEdgeApprox>=0?'gr':'rd');
+    $('sim-hourly').innerText=(perHourEV>=0?'+$':'-$')+Math.abs(Math.round(perHourEV)).toLocaleString();
+    $('sim-hourly').className='v mono '+(perHourEV>=0?'gr':'rd');
+    $('sim-sd').innerText='$'+Math.round(sd).toLocaleString();
     $('sim-ror').innerText=Math.round(ruin/trials*100)+'%';
     $('sim-ror').className='v mono '+(ruin/trials>0.15?'rd':'gr');
+    $('sim-win').innerText=winRate+'%';
+    $('sim-win').className='v mono '+(winRate>=50?'gr':'rd');
     $('sim-final').innerText='$'+Math.round(median).toLocaleString();
+    $('sim-n0').innerText = n0===Infinity ? '∞' : n0.toLocaleString();
     drawSim(paths,bank0);
-    $('sim-note').innerText=`${trials} sessions × ${(+hands).toLocaleString()} hands each · ${plotN} trajectories plotted`;
+    $('sim-note').innerText=`${trials} sessions × ${(+hands).toLocaleString()} rounds`+(wong?` · Wonging TC≥+${wongTC} (played ~${Math.round(handsPer).toLocaleString()}/session)`:'')+(kelly?' · Kelly sizing':'')+` · ${plotN} plotted`;
     $('sim-run').disabled=false;
   },30);
 }
@@ -834,7 +963,8 @@ function switchView(name){
   if(name==='chart') buildChart();
   if(name==='stats') refreshStats();
   if(name==='truecount' && !tcState) tcNew();
-  if(name==='deviations' && !dvState) dvDeal();
+  if(name==='deviations'){ if(!dvState) dvDeal(); dvBuildIndexTable(); }
+  if(name==='play') plInit();
 }
 document.getElementById('tabs').addEventListener('click',e=>{const t=e.target.closest('.tab'); if(t)switchView(t.dataset.v);});
 
@@ -863,6 +993,203 @@ function resetStats(){
   persistStats(); refreshStats();
 }
 
+/* ============================================================
+   DEVIATIONS — index reference table
+   ============================================================ */
+function dvBuildIndexTable(){
+  const rows=DEVIATIONS.map(d=>{
+    const label = d.at==='R' ? 'Surrender' : ACT[d.at];
+    return `<tr><td style="text-align:left">${d.desc}</td><td>${label} at TC ≥ ${fmt(d.idx)}</td></tr>`;
+  }).join('');
+  $('dv-index').innerHTML=`<table class="chart"><tr><th style="text-align:left">Hand</th><th>Deviation</th></tr>${rows}</table>`;
+}
+
+/* ============================================================
+   PLAY A SHOE — full interactive blackjack with a live count
+   ============================================================ */
+const PLAY = { bank: load('da_bank',5000), startBank:0, bet:50, run:0, dealt:0, shoe:[], idx:0, penLimit:0,
+               hands:[], dealer:[], hole:null, active:0, phase:'bet', insurance:0, firstAction:true, mistakes:0, inited:false };
+
+function plBuildShoe(){
+  const n=RULES.decks, s=[];
+  for(let d=0; d<n; d++) for(const r of RANKS) for(const su of SUITS) s.push({r, s:su});
+  for(let i=s.length-1; i>0; i--){ const j=Math.floor(Math.random()*(i+1)); const tmp=s[i]; s[i]=s[j]; s[j]=tmp; }
+  PLAY.shoe=s; PLAY.idx=0; PLAY.run=0; PLAY.dealt=0;
+  PLAY.penLimit=Math.floor(n*52*0.75);   // ~75% penetration before shuffle
+}
+function plDraw(count=true){
+  if(PLAY.idx>=PLAY.shoe.length) plBuildShoe();
+  const c=PLAY.shoe[PLAY.idx++]; PLAY.dealt++;
+  if(count) PLAY.run += sys().tag(c);
+  return c;
+}
+function plTrueCount(){ const dr=Math.max(0.25,(PLAY.shoe.length-PLAY.idx)/52); return PLAY.run/dr; }
+function plSuggestedBet(){ const u=betUnits(plTrueCount(),8); return Math.min(PLAY.bank, u*25); }
+function totalCommitted(){ return PLAY.hands.reduce((a,h)=>a+h.bet,0); }
+function canSplitHand(h){ return h.cards.length===2 && rankVal(h.cards[0].r)===rankVal(h.cards[1].r) && PLAY.hands.length<4 && !h.splitAce; }
+
+function plInit(){
+  if(!PLAY.inited){ if(!PLAY.shoe.length) plBuildShoe(); PLAY.startBank=PLAY.bank; PLAY.inited=true; PLAY.phase='bet'; }
+  plRender();
+}
+function plChip(delta){ PLAY.bet=Math.max(0, Math.min(PLAY.bank, PLAY.bet+delta)); plRender(); }
+function plBetSuggested(){ PLAY.bet=plSuggestedBet(); plRender(); }
+function plToggleCount(){ const c=$('pl-showcount'); c.checked=!c.checked; plRender(); }
+function plResetBank(){ PLAY.bank=5000; PLAY.startBank=5000; PLAY.mistakes=0; $('pl-mistakes').innerText=0; save('da_bank',PLAY.bank); plMsg('Bankroll reset to $5,000.',''); plRender(); }
+function plMsg(t,cls){ const m=$('pl-msg'); m.className='fb show'+(cls?' '+cls:''); m.innerHTML=t; }
+
+function plDeal(){
+  if(PLAY.phase!=='bet') return;
+  if(PLAY.idx>=PLAY.penLimit){ plBuildShoe(); plMsg('Cut card reached — new shoe shuffled in.',''); }
+  const bet=PLAY.bet;
+  if(bet<=0){ plMsg('Place a bet first.','no'); return; }
+  if(bet>PLAY.bank){ plMsg('Bet exceeds your bankroll.','no'); return; }
+  $('pl-msg').className='fb';
+  PLAY.phase='player'; PLAY.firstAction=true; PLAY.insurance=0;
+  PLAY.hands=[{cards:[plDraw(),plDraw()], bet, done:false, doubled:false, surrender:false, bust:false, splitAce:false, fromSplit:false, result:null}];
+  PLAY.dealer=[plDraw()];              // up-card (counted)
+  PLAY.hole=plDraw(false);             // hole card (counted only when revealed)
+  PLAY.active=0;
+  const up=PLAY.dealer[0];
+  if(up.r==='A' && $('pl-coach').checked && plTrueCount()>=3 && PLAY.bank>=bet+Math.floor(bet/2)) PLAY.insurance=Math.floor(bet/2);
+  const dealerHasBJ=(up.r==='A'||rankVal(up.r)===10) && handTotal([up,PLAY.hole]).total===21;
+  const playerBJ=handTotal(PLAY.hands[0].cards).total===21;
+  if(dealerHasBJ){ plPeekSettle(true); return; }
+  if(playerBJ){ plPeekSettle(false); return; }
+  plRender();
+}
+function plPeekSettle(dealerHasBJ){
+  PLAY.dealer.push(PLAY.hole); PLAY.run += sys().tag(PLAY.hole); PLAY.hole=null;
+  const h=PLAY.hands[0]; const playerBJ=handTotal(h.cards).total===21; let net=0;
+  if(dealerHasBJ){
+    if(playerBJ){ h.result='push'; } else { h.result='lose'; net-=h.bet; }
+    if(PLAY.insurance) net += PLAY.insurance*2;
+  } else {
+    h.result='win'; net += h.bet*1.5;                 // player natural pays 3:2
+    if(PLAY.insurance) net -= PLAY.insurance;
+  }
+  plFinish(net);
+}
+function plAct(a){
+  const h=PLAY.hands[PLAY.active]; if(!h||h.done) return;
+  plCoachCheck(a,h);
+  PLAY.firstAction=false;
+  if(a==='H'){ h.cards.push(plDraw()); if(handTotal(h.cards).total>21){ h.done=true; h.bust=true; } }
+  else if(a==='S'){ h.done=true; }
+  else if(a==='D'){ h.doubled=true; h.bet*=2; h.cards.push(plDraw()); h.done=true; if(handTotal(h.cards).total>21) h.bust=true; }
+  else if(a==='R'){ h.surrender=true; h.done=true; }
+  else if(a==='P'){ plSplit(h); plRender(); return; }
+  plAdvance();
+}
+function plSplit(h){
+  const isAce=h.cards[0].r==='A';
+  const moved=h.cards.pop();
+  const nh={cards:[moved], bet:h.bet, done:false, doubled:false, surrender:false, bust:false, splitAce:isAce, fromSplit:true, result:null};
+  h.fromSplit=true; h.splitAce=isAce;
+  h.cards.push(plDraw()); nh.cards.push(plDraw());
+  PLAY.hands.splice(PLAY.active+1,0,nh);
+  if(isAce){ h.done=true; nh.done=true; }            // split aces: one card each, no more action
+}
+function plAdvance(){
+  let i=0; while(i<PLAY.hands.length && PLAY.hands[i].done) i++;
+  if(i>=PLAY.hands.length){ plDealerPlay(); return; }
+  PLAY.active=i; plRender();
+}
+function plDealerPlay(){
+  PLAY.dealer.push(PLAY.hole); PLAY.run += sys().tag(PLAY.hole); PLAY.hole=null;
+  const anyLive=PLAY.hands.some(h=>!h.bust && !h.surrender);
+  if(anyLive){
+    let t=handTotal(PLAY.dealer);
+    while(t.total<17 || (t.total===17 && t.soft && RULES.h17)){ PLAY.dealer.push(plDraw()); t=handTotal(PLAY.dealer); }
+  }
+  plSettle();
+}
+function plSettle(){
+  const d=handTotal(PLAY.dealer); const dbust=d.total>21; let net=0;
+  PLAY.hands.forEach(h=>{
+    if(h.surrender){ h.result='surrender'; net-=h.bet/2; return; }
+    const p=handTotal(h.cards);
+    if(p.total>21){ h.result='lose'; net-=h.bet; return; }
+    const pIsBJ = h.cards.length===2 && p.total===21 && !h.fromSplit;   // natural (dealer has no natural here — peeked)
+    if(pIsBJ){ h.result='win'; net+=h.bet*1.5; return; }
+    if(dbust || p.total>d.total){ h.result='win'; net+=h.bet; }
+    else if(p.total<d.total){ h.result='lose'; net-=h.bet; }
+    else { h.result='push'; }
+  });
+  if(PLAY.insurance) net -= PLAY.insurance;    // dealer had no natural on this path
+  plFinish(net);
+}
+function plFinish(net){
+  PLAY.bank+=net; save('da_bank',PLAY.bank);
+  PLAY.phase='done';
+  const t = net>0?`✓ You won <b>$${Math.round(net).toLocaleString()}</b> this hand.` : net<0?`✗ You lost <b>$${Math.abs(Math.round(net)).toLocaleString()}</b> this hand.` : 'Push — bet returned.';
+  plMsg(t, net>0?'ok':(net<0?'no':''));
+  plRender();
+}
+function plNewHand(){ if(PLAY.bank<=0){ plMsg('Out of money — reset your bankroll to keep practicing.','no'); } PLAY.phase='bet'; PLAY.hands=[]; PLAY.dealer=[]; PLAY.hole=null; PLAY.active=0; PLAY.firstAction=true; $('pl-msg').className='fb'; plRender(); }
+function plNewShoe(manual){ plBuildShoe(); if(manual) plMsg('Fresh shoe shuffled. Count reset to 0.',''); PLAY.phase='bet'; PLAY.hands=[]; PLAY.dealer=[]; PLAY.hole=null; plRender(); }
+
+function plCoachCheck(a,h){
+  if(!$('pl-coach').checked) return;
+  const opt={ canDouble: h.cards.length===2 && !h.splitAce && (!h.fromSplit||RULES.das),
+              canSplit: canSplitHand(h),
+              canSurrender: PLAY.hands.length===1 && h.cards.length===2 && PLAY.firstAction && RULES.surr };
+  const correct=bsResolve(h.cards, PLAY.dealer[0], opt);
+  if(a!==correct){ PLAY.mistakes++; $('pl-mistakes').innerText=PLAY.mistakes; plMsg(`⚠ Coach: book play was <b>${ACT[correct]}</b> (you chose ${ACT[a]}).`,'no'); }
+}
+
+function plRenderActions(){
+  const h=PLAY.hands[PLAY.active]; const act=$('pl-actions'); act.innerHTML='';
+  const committed=totalCommitted();
+  const mk=(a,label,en)=>{ const b=document.createElement('button'); b.className='btn'+((a==='H'||a==='S')?'':' ghost'); b.innerText=label; b.disabled=!en; b.onclick=()=>plAct(a); act.appendChild(b); };
+  const two=h.cards.length===2;
+  mk('H','Hit',true);
+  mk('S','Stand',true);
+  mk('D','Double', two && !h.splitAce && (!h.fromSplit||RULES.das) && PLAY.bank>=committed+h.bet);
+  mk('P','Split', canSplitHand(h) && PLAY.bank>=committed+h.bet);
+  if(RULES.surr && PLAY.hands.length===1 && two && PLAY.firstAction) mk('R','Surrender',true);
+}
+function plRender(){
+  $('pl-bank').innerText='$'+Math.round(PLAY.bank).toLocaleString();
+  const pl=PLAY.bank-PLAY.startBank;
+  $('pl-pl').innerText=(pl>=0?'+$':'-$')+Math.abs(Math.round(pl)).toLocaleString(); $('pl-pl').className='v mono '+(pl>=0?'gr':(pl<0?'rd':''));
+  $('pl-run').innerText=fmt(PLAY.run);
+  $('pl-tc').innerText=fmt(Math.round(plTrueCount()));
+  const decksRem=Math.max(0,(PLAY.shoe.length-PLAY.idx)/52);
+  $('pl-decks').innerText=decksRem.toFixed(1);
+  $('pl-pen').style.width=Math.min(100, PLAY.penLimit?PLAY.idx/PLAY.penLimit*100:0)+'%';
+  const show=$('pl-showcount').checked; $('pl-run').classList.toggle('hide',!show); $('pl-tc').classList.toggle('hide',!show);
+  $('pl-suggest').innerText='$'+plSuggestedBet().toLocaleString();
+  $('pl-bet').innerText='$'+PLAY.bet.toLocaleString();
+  // dealer
+  const dl=$('pl-dealer'); dl.innerHTML='';
+  if(PLAY.phase==='bet'){ $('pl-dtot').innerText=''; }
+  else {
+    PLAY.dealer.forEach((c,i)=>{ const e=cardEl(c); e.style.animationDelay=(i*60)+'ms'; dl.appendChild(e); });
+    if(PLAY.hole){ const b=document.createElement('div'); b.className='pcard back'; b.innerHTML='<div class="r"></div><div class="s"></div>'; dl.appendChild(b);
+      $('pl-dtot').innerText='shows '+(rankVal(PLAY.dealer[0].r)===11?'A':rankVal(PLAY.dealer[0].r)); }
+    else { const d=handTotal(PLAY.dealer); $('pl-dtot').innerText='— '+(d.total>21?'BUST ('+d.total+')':d.total); }
+  }
+  // player hands
+  const ph=$('pl-player'); ph.innerHTML='';
+  PLAY.hands.forEach((h,i)=>{
+    const cls=h.result?(h.result==='win'?'win':(h.result==='lose'?'lose':'push')):'';
+    const box=document.createElement('div'); box.className='phand '+((i===PLAY.active&&PLAY.phase==='player')?'active ':'')+cls;
+    const hd=document.createElement('div'); hd.className='hand'; hd.style.minHeight='auto';
+    h.cards.forEach((c,j)=>{ const e=cardEl(c); e.style.animationDelay=(j*50)+'ms'; hd.appendChild(e); });
+    box.appendChild(hd);
+    const t=handTotal(h.cards);
+    const tag=h.result?`<span class="res-tag ${h.result==='win'?'w':(h.result==='lose'?'l':'p')}">${h.result.toUpperCase()}</span>`:'';
+    const meta=document.createElement('div'); meta.className='meta';
+    meta.innerHTML=`$${h.bet.toLocaleString()}${h.doubled?' ×2':''} · ${(t.soft?'soft ':'')+t.total}${t.total>21?' BUST':''} ${tag}`;
+    box.appendChild(meta); ph.appendChild(box);
+  });
+  $('pl-bet-ctrl').style.display=PLAY.phase==='bet'?'block':'none';
+  $('pl-actions').style.display=PLAY.phase==='player'?'flex':'none';
+  $('pl-next').style.display=PLAY.phase==='done'?'flex':'none';
+  if(PLAY.phase==='player') plRenderActions();
+}
+
 /* keyboard */
 document.addEventListener('keydown',e=>{
   if(e.target.matches('input,select'))return;
@@ -874,6 +1201,15 @@ document.addEventListener('keydown',e=>{
       const map={h:'H',s:'S',d:'D',p:'P',r:'R'};
       const btn=[...document.querySelectorAll('#bs-actions .btn')].find(b=>b.innerText[0].toLowerCase()===k);
       if(btn && !btn.disabled) bsAnswer(map[k]);
+    }
+  }
+  if(active==='v-play'){
+    if(PLAY.phase==='bet' && (k===' '||k==='enter')){ e.preventDefault(); plDeal(); return; }
+    if(PLAY.phase==='done' && (k===' '||k==='enter')){ e.preventDefault(); plNewHand(); return; }
+    if(PLAY.phase==='player' && 'hsdpr'.includes(k)){
+      const map={h:'H',s:'S',d:'D',p:'P',r:'R'};
+      const btn=[...document.querySelectorAll('#pl-actions .btn')].find(b=>b.innerText[0].toLowerCase()===k);
+      if(btn && !btn.disabled) plAct(map[k]);
     }
   }
 });
