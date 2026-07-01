@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  :root{color-scheme:dark}
+  body{width:280px;margin:0;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif;background:#0a1410;color:#e9efe9}
+  .hd{display:flex;align-items:center;gap:9px;padding:13px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .sp{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:#0a1410;font-size:17px;background:linear-gradient(135deg,#f4c96b,#e8b04b)}
+  .hd b{font-size:14px}.hd .sub{font-size:9px;letter-spacing:1.5px;color:#8ea79a;text-transform:uppercase}
+  .body{padding:14px}
+  .warn{font-size:10.5px;line-height:1.45;color:#ffb0a4;background:rgba(224,82,63,.12);border:1px solid rgba(224,82,63,.3);border-radius:9px;padding:8px 10px;margin-bottom:12px}
+  label{display:block;font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:#8ea79a;margin:0 0 5px}
+  select,.f{width:100%;background:#0d1a15;border:1px solid rgba(255,255,255,.12);color:#e9efe9;border-radius:9px;padding:9px;font-size:13px;font-family:inherit;margin-bottom:12px}
+  .tg{display:flex;align-items:center;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+  input[type=checkbox]{width:18px;height:18px;accent-color:#e8b04b}
+  .btn{width:100%;border:0;border-radius:11px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;color:#0a1410;background:linear-gradient(135deg,#f4c96b,#e8b04b);margin-top:14px}
+  .btn:hover{filter:brightness(1.06)}
+  .hint{font-size:10.5px;color:#8ea79a;line-height:1.45;margin-top:10px}
+  a{color:#e8b04b}
+</style>
+</head>
+<body>
+  <div class="hd"><div class="sp">♠</div><div><b>Devil's Ace</b><div class="sub">Practice Coach</div></div></div>
+  <div class="body">
+    <div class="warn">Practice/training tool only. Using count or strategy assistance on real-money online blackjack violates casinos' terms of service and may be illegal where you live. Use it to drill on free-play tables.</div>
+    <label>Counting system</label>
+    <select id="system">
+      <option value="hilo">Hi-Lo</option><option value="ko">KO</option><option value="hiopt1">Hi-Opt I</option>
+      <option value="omega2">Omega II</option><option value="zen">Zen</option><option value="red7">Red 7</option>
+    </select>
+    <label>Decks in shoe</label>
+    <select id="decks"><option>1</option><option>2</option><option>4</option><option selected>6</option><option>8</option></select>
+    <div class="tg"><span>Dealer hits soft 17 (H17)</span><input type="checkbox" id="h17"></div>
+    <div class="tg"><span>Double after split (DAS)</span><input type="checkbox" id="das" checked></div>
+    <div class="tg" style="border-bottom:0"><span>Late surrender</span><input type="checkbox" id="surr" checked></div>
+    <button class="btn" id="toggle">Show / hide overlay on this tab</button>
+    <div class="hint" id="hint">The overlay floats on the current page so you can drill your count and strategy while you play a <b>practice</b> table. Click again to hide.</div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

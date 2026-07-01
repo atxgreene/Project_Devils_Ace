@@ -15,6 +15,10 @@
 - **Edge Simulator** — Monte-Carlo model of a counting session with **back-counting / Wonging** (enter only above a chosen true count), optional **Kelly bet sizing**, and a full metrics panel: expected $/session and $/hour, player edge, session standard deviation, risk of ruin, share of sessions in profit, median end bankroll, and **N0** (hands needed to overcome one SD of variance), plus sampled bankroll trajectories.
 - **Live Strategy Chart** — Full hard / soft / pairs chart that regenerates instantly for your exact rules.
 
+## Chrome extension (practice companion)
+
+A Manifest V3 browser extension in [`extension/`](./extension) floats the counting HUD + strategy coach over any tab so you can drill while practicing. **Training only** — it doesn't read casino game state, bet, or automate anything (you tap the cards); using count assistance on real-money online blackjack breaks casinos' terms and may be illegal. Load it unpacked from `chrome://extensions`. See [extension/README.md](./extension/README.md).
+
 ## Rules engine
 
 Basic strategy is computed from first principles for your configured rules and validated against a canonical 6-deck reference chart:
